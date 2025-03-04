@@ -51,7 +51,7 @@ export default {
 <style scoped>
 .title {
     text-align: center;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-family: 'League Spartan', sans-serif;
     margin-top: 4rem;
     padding-bottom: 30px;
 }
@@ -70,7 +70,7 @@ export default {
 }
 
 .subTitles {
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-family: 'League Spartan', sans-serif;
     color: #A3A0A0;
 }
 

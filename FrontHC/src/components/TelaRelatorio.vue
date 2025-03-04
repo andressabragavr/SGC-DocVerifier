@@ -66,7 +66,7 @@ export default {
     width: 300px; 
     border: 1px solid #ccc; 
     border-radius: 5px 0 0 5px; 
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-family: 'League Spartan', sans-serif;
     font-size: 15px;
     font-weight: bold;
     color: #000;
@@ -79,8 +79,7 @@ export default {
     border-radius: 0 5px 5px 0; 
     background-color: #FF8C00; 
     color: white; cursor: pointer; 
-    /* font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; */
-    font-family: Verdana, Geneva, Tahoma, sans-serif;
+    font-family: 'League Spartan', sans-serif;
     font-weight: bold;
 } 
 
@@ -90,9 +89,7 @@ export default {
 
 .title {
     text-align: center;
-    /* font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; */
-    /* font-family:'Lucida Sans', 'Lucida Sans Regular', 'Lucida Grande', 'Lucida Sans Unicode', Geneva, Verdana, sans-serif; */
-    font-family: "League Spartan", serif;
+    font-family: 'League Spartan', sans-serif;
     margin-top: 5rem;
     margin-bottom: 3rem;
 }
@@ -104,7 +101,7 @@ export default {
 }
 
 .subTitles {
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-family: 'League Spartan', sans-serif;
     color: #A3A0A0;
 }
 

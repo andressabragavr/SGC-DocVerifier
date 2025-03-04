@@ -34,7 +34,7 @@ export default {
 <style scoped>
 .welcome {
     text-align: left;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-family: 'League Spartan', sans-serif;
     margin-top: 4rem;
     margin-left: 4rem;
     padding-bottom: 30px;
@@ -48,6 +48,6 @@ export default {
 
 .titles {
     text-align: center;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-family: 'League Spartan', sans-serif;
 }
 </style>

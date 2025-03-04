@@ -1,6 +1,7 @@
 <script lang="ts">
-  import { defineComponent, ref } from 'vue';
+  import { defineComponent, reactive, ref } from 'vue';
   import { useRouter } from 'vue-router';
+  import authService from '@/services/authService';
   
   export default defineComponent({
     name: 'LoginForm',
@@ -8,6 +9,7 @@
       const router = useRouter();
       const login = ref<string>('');
       const password = ref<string>('');
+      const errorMessage = ref('');
   
       const handleLogin = () => {
         console.log('Login:', login.value);
@@ -30,7 +32,7 @@
 </script>
 
 <template>
-     <!-- <img src="../assets/LogoFacens.png" alt="Logo" class="logo"> -->
+     <img src="../assets/Logo-Branco.png" alt="Logo" class="logo">
      <main>
         <h1 class="title">Horas Complementares</h1>
         <div class="login-form">
@@ -44,15 +46,14 @@
   
 <style scoped>
 .logo {
-    height: 4.5rem;
-    margin-bottom: 2rem;
-    margin-top: 0.6rem;
-    margin-left: 0.3rem;
+    height: 7rem;
+    margin-left: 30px;
+    margin-top: 20px;
 }
 
 .title {
     text-align: center;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-family: 'League Spartan', sans-serif;
     margin-top: 4rem;
     padding-bottom: 30px;
 }
@@ -72,7 +73,7 @@
     border: 2px solid #ccc;
     border-radius: 10px;
     font-size: 16px;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-family: 'League Spartan', sans-serif;
 }
   
 .login-button {
@@ -86,7 +87,7 @@
     border-radius: 10px;
     font-size: 15px;
     font-weight: bold;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-family: 'League Spartan', sans-serif;
     cursor: pointer;
 }
 
@@ -105,7 +106,7 @@
     border-radius: 10px;
     font-size: 15px;
     font-weight: bold;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-family: 'League Spartan', sans-serif;
     cursor: pointer;
 }
 

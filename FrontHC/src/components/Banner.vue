@@ -21,7 +21,7 @@ export default defineComponent({
 <template>
     <header class="banner">
         <div class="logo">
-            <img src="../assets/LogoFacens.png" alt="Logo" class="logo">
+            <img src="../assets/Logo-Escuro.png" alt="Logo" class="logo">
         </div>
         <div class="menu">
             <nav class="menuOptions">
@@ -43,7 +43,7 @@ export default defineComponent({
 }
 
 .logo {
-    height: 4.5rem;
+    height: 6rem;
     margin-bottom: 2rem;
     margin-top: 0.6rem;
     margin-left: 0.3rem;
@@ -60,7 +60,7 @@ export default defineComponent({
     padding: 1rem;
     display: flex;
     gap: 2rem;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-family: 'League Spartan', sans-serif;
     font-weight: bold;
     font-size:larger;
 }

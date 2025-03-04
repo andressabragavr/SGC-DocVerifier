@@ -24,7 +24,7 @@ export default {
 <style scoped>
 .welcome {
     text-align: left;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-family: 'League Spartan', sans-serif;
     margin-top: 4rem;
     margin-left: 4rem;
     padding-bottom: 30px;
@@ -41,7 +41,7 @@ export default {
     width: 300px; 
     border: 1px solid #ccc; 
     border-radius: 5px 0 0 5px; 
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-family: 'League Spartan', sans-serif;
     font-size: 16px;
     font-weight: bold;
     color: #000;
@@ -54,7 +54,7 @@ export default {
     border-radius: 0 5px 5px 0; 
     background-color: #FF8C00; 
     color: white; cursor: pointer; 
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-family: 'League Spartan', sans-serif;
     font-size: 16px;
     font-weight: bold;
 } 

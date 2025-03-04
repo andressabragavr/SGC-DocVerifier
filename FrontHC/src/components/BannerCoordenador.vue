@@ -60,7 +60,7 @@ export default defineComponent({
     padding: 1rem;
     display: flex;
     gap: 2rem;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-family: 'League Spartan', sans-serif;
     font-weight: bold;
     font-size:larger;
 }

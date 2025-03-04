@@ -390,14 +390,14 @@ export default defineComponent({
 <style scoped>
 .title {
     text-align: center;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-family: 'League Spartan', sans-serif;
     margin-top: 4rem;
     padding-bottom: 30px;
 }
 
 .Obs {
   text-align: center;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  font-family: 'League Spartan', sans-serif;
 }
 
 .container-categorias {
@@ -419,7 +419,7 @@ th, td {
   border: 1px solid #000;
   padding: 8px;
   text-align: center;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  font-family: 'League Spartan', sans-serif;
   word-wrap: 
 }
 
@@ -467,7 +467,7 @@ td:last-child {
     border-radius: 5px;
     cursor: pointer;
     font-size: 18px;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-family: 'League Spartan', sans-serif;
 }
   
 .upload-button:hover {
@@ -484,7 +484,7 @@ input[type="file"] {
 }
 
 .file-name {
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  font-family: 'League Spartan', sans-serif;
 }
   
 .submit-button {
@@ -496,7 +496,7 @@ input[type="file"] {
     background-color: #A3A0A0;
     color: white;
     font-size: 17px;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-family: 'League Spartan', sans-serif;
     border-radius: 5px;
     cursor: pointer;
 }
