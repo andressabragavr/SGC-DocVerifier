@@ -1,0 +1,11 @@
+numpy
+scikit-learn
+faiss-cpu
+torch
+torchvision
+torchtext
+langchain
+langchain-ollama
+pdf2image
+pytesseract
+flask

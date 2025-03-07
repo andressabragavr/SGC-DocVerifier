@@ -1,0 +1,14 @@
+Metadata-Version: 2.1
+Name: IA_package
+Version: 0.1
+Requires-Dist: numpy
+Requires-Dist: scikit-learn
+Requires-Dist: faiss-cpu
+Requires-Dist: torch
+Requires-Dist: torchvision
+Requires-Dist: torchtext
+Requires-Dist: langchain
+Requires-Dist: langchain-ollama
+Requires-Dist: pdf2image
+Requires-Dist: pytesseract
+Requires-Dist: flask
