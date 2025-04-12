@@ -1,6 +1,6 @@
 <script lang="ts">
 import Banner from './Banner.vue';
-import { defineComponent, ref } from 'vue';
+import { defineComponent, ref, computed } from 'vue';
 import Tooltip from './Tooltip.vue';
   
 export default defineComponent({
@@ -70,7 +70,7 @@ export default defineComponent({
           <td>Obrigatória</td>
           <td>
             <Tooltip>
-              <template v-slot:default>Eventos Promovidos pela Facens</template>
+              <template v-slot:default>Eventos Promovidos pela Instituição</template>
               <template v-slot:tooltip>
                 Participação no papel de apresentador e/ou expositor e/ou debatedor e/ou
                 mediador e/ou organizador em congressos, seminários, simpósios, palestras,
@@ -88,7 +88,7 @@ export default defineComponent({
           <td>Obrigatória</td>
           <td>
             <Tooltip>
-              <template v-slot:default>Atuação em Núcleos e Laboratórios da Facens</template>
+              <template v-slot:default>Atuação em Núcleos e Laboratórios da Instituição</template>
               <template v-slot:tooltip>
                 Participação voluntária e como membro ativo nos núcleos ou Laboratórios do
                 curso prestando atendimento à comunidade Interna ou Externa, em horário extraclasse.
@@ -135,10 +135,10 @@ export default defineComponent({
           <td>Obrigatória</td>
           <td>
             <Tooltip>
-              <template v-slot:default>Cursos de Formação Complementar (oferecidos pela FACENS)</template>
+              <template v-slot:default>Cursos de Formação Complementar (oferecidos pela Instituição)</template>
               <template v-slot:tooltip>
                 Participação como estudante em cursos de formação complementar oferecidos
-                pela Facens na modalidade presencial ou EAD.
+                pela Instituição na modalidade presencial ou EAD.
               </template>
             </Tooltip>
           </td>
@@ -154,7 +154,7 @@ export default defineComponent({
               <template v-slot:default>Iniciação Científica com Bolsa</template>
               <template v-slot:tooltip>
                 Participação no papel de estudante-pesquisador bolsista em projetos de Iniciação Científica 
-                ou Tecnológica com duração mínima de 200 horas, orientado ou co-orientado por docente da Facens.
+                ou Tecnológica com duração mínima de 200 horas, orientado ou co-orientado por docente da Instituição.
               </template>
             </Tooltip>
           </td>
@@ -170,7 +170,7 @@ export default defineComponent({
               <template v-slot:default>Iniciação Científica sem Bolsa</template>
               <template v-slot:tooltip>
                 Participação no papel de estudante-pesquisador voluntário de projetos de Iniciação Científica 
-                ou Tecnológica com duração mínima de 200 horas e orientado ou co-orientado por docente da Facens.
+                ou Tecnológica com duração mínima de 200 horas e orientado ou co-orientado por docente da Instituição.
               </template>
             </Tooltip>
           </td>
@@ -183,10 +183,10 @@ export default defineComponent({
           <td>Obrigatória</td>
           <td>
             <Tooltip>
-              <template v-slot:default>Monitor na Facens</template>
+              <template v-slot:default>Monitor na Instituição</template>
               <template v-slot:tooltip>
                 Participação como estudante em cursos de formação complementar oferecidos
-                pela Facens na modalidade presencial ou EAD.
+                pela Instituição na modalidade presencial ou EAD.
               </template>
             </Tooltip>
           </td>
@@ -233,7 +233,7 @@ export default defineComponent({
             <Tooltip>
               <template v-slot:default>Atividade Profissional ou Orientações Práticas em Laboratórios da IES</template>
               <template v-slot:tooltip>
-                Atividades de caráter prático e profissionalizante desenvolvidos na FACENS
+                Atividades de caráter prático e profissionalizante desenvolvidos na Instituição,
                 sob a supervisão de Professores, na área de formação em horário extraclasse.
             </template>
             </Tooltip>
@@ -373,7 +373,7 @@ export default defineComponent({
             <v-tooltip text="Participação em intercâmbio com instituições parceiras, no âmbito nacional ou internacional.">
               <template v-slot:activator="{ props }">
                 <span v-bind="props" style="cursor: pointer;">
-                  Participação em Atividade Competitiva (fora da FACENS) ***
+                  Participação em Atividade Competitiva (fora da Instituição) ***
                 </span>
               </template>
             </v-tooltip>
@@ -490,7 +490,7 @@ input[type="file"] {
 .submit-button {
     display: block;
     padding: 10px 80px;
-    margin-left: 125px;
+    justify-self: center;
     margin-top: 30px;
     border: none;
     background-color: #A3A0A0;

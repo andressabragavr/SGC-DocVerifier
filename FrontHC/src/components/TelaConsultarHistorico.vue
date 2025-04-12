@@ -1,35 +1,130 @@
 <script lang="ts">
+import { defineComponent, ref } from 'vue';
 import BannerCoordenador from './BannerCoordenador.vue';
+import coordenadorService from '@/services/coordenadorService';
 
-export default {
-    components: { BannerCoordenador }
-}
+export default defineComponent({
+    components: { BannerCoordenador },
+    setup() {
+        const ra = ref('');
+        const isLoading = ref(false);
+        const errorMessage = ref('');
+        const aluno = ref<any>(null);
 
-// function search() {
-//     var query = document.getElementById("search-input").value;
-// }
+        const buscarAluno = async () => {
+            if (!ra.value) {
+                errorMessage.value = 'Por favor, insira um RA';
+                return;
+            }
+
+            try {
+                isLoading.value = true;
+                errorMessage.value = '';
+                aluno.value = await coordenadorService.buscarAlunoPorRA(ra.value);
+            } catch (error) {
+                errorMessage.value = 'Aluno não encontrado ou erro ao buscar dados';
+                console.error('Erro na busca:', error);
+            } finally {
+                isLoading.value = false;
+            }
+        };
+
+        const aprovarCertificado = async (certificadoId: number) => {
+            try {
+                await coordenadorService.aprovarCertificado(certificadoId);
+                await buscarAluno(); // Atualiza os dados
+            } catch (error) {
+                console.error('Erro ao aprovar certificado:', error);
+            }
+        };
+
+        const rejeitarCertificado = async (certificadoId: number) => {
+            const motivo = prompt('Informe o motivo da rejeição:');
+            if (motivo) {
+                try {
+                    await coordenadorService.rejeitarCertificado(certificadoId, motivo);
+                    await buscarAluno(); // Atualiza os dados
+                } catch (error) {
+                    console.error('Erro ao rejeitar certificado:', error);
+                }
+            }
+        };
+
+        return {
+            ra,
+            isLoading,
+            errorMessage,
+            aluno,
+            buscarAluno,
+            aprovarCertificado,
+            rejeitarCertificado
+        };
+    }
+});
 </script>
 
 <template>
     <BannerCoordenador />
     <main>
-        <h3 class="welcome">Bem-vindo Andréa!</h3>
         <div class="search-container">
-            <input type="text" class="search-input" id="search-input" placeholder="Buscar por RA...">
-            <button class="search-button" onclick="search()">Buscar</button>
+            <input 
+                type="text" 
+                class="search-input" 
+                v-model="ra" 
+                placeholder="Buscar por RA..."
+                :disabled="isLoading"
+            >
+            <button 
+                class="search-button" 
+                @click="buscarAluno"
+                :disabled="isLoading"
+            >
+                {{ isLoading ? 'Buscando...' : 'Buscar' }}
+            </button>
+        </div>
+
+        <p v-if="errorMessage" class="error-message">{{ errorMessage }}</p>
+
+        <div v-if="aluno" class="aluno-info">
+            <h2>Dados do Aluno</h2>
+            <p>Nome: {{ aluno.nome }}</p>
+            <p>RA: {{ aluno.ra }}</p>
+            <p>Horas Lançadas: {{ aluno.horasLancadas }}</p>
+            <p>Horas Faltantes: {{ aluno.horasFaltantes }}</p>
+            <p>Horas Exigidas: {{ aluno.horasExigidas }}</p>
+
+            <h3>Certificados</h3>
+            <div class="certificados-lista">
+                <div v-for="cert in aluno.certificados" :key="cert.id" class="certificado-item">
+                    <h4>{{ cert.titulo }}</h4>
+                    <p>Categoria: {{ cert.categoria }}</p>
+                    <p>Tipo: {{ cert.tipoAtividade }}</p>
+                    <p>Data: {{ cert.dataEnvio }}</p>
+                    <p>Horas: {{ cert.horas }}</p>
+                    <p>Status: {{ cert.status }}</p>
+                    <div class="acoes">
+                        <button 
+                            @click="aprovarCertificado(cert.id)"
+                            class="aprovar-button"
+                            v-if="cert.status === 'PENDENTE'"
+                        >
+                            Aprovar
+                        </button>
+                        <button 
+                            @click="rejeitarCertificado(cert.id)"
+                            class="rejeitar-button"
+                            v-if="cert.status === 'PENDENTE'"
+                        >
+                            Rejeitar
+                        </button>
+                    </div>
+                </div>
+            </div>
         </div>
     </main>
 </template>
 
 <style scoped>
-.welcome {
-    text-align: left;
-    font-family: 'League Spartan', sans-serif;
-    margin-top: 4rem;
-    margin-left: 4rem;
-    padding-bottom: 30px;
-}
-
 .search-container { 
     display: flex; 
     justify-content: center; 

@@ -21,7 +21,7 @@ export default defineComponent({
 <template>
     <header class="banner">
         <div class="logo">
-            <img src="../assets/LogoFacens.png" alt="Logo" class="logo">
+            <img src="../assets/Logo-Verde.png" alt="Logo" class="logo" />
         </div>
         <div class="menu">
             <nav class="menuOptions">
@@ -43,10 +43,10 @@ export default defineComponent({
 }
 
 .logo {
-    height: 4.5rem;
+    height: 7rem;
     margin-bottom: 2rem;
-    margin-top: 0.6rem;
-    margin-left: 0.3rem;
+    margin-top: 0.8rem;
+    margin-left: 0.5rem;
 }
 
 .menu {
@@ -60,7 +60,7 @@ export default defineComponent({
     padding: 1rem;
     display: flex;
     gap: 2rem;
-    font-family: 'League Spartan', sans-serif;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     font-weight: bold;
     font-size:larger;
 }

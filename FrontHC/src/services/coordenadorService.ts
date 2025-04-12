@@ -1,52 +1,78 @@
 import api from "./api";
 
-interface AtividadePendente {
-    id: number;
-    nomeAluno: string; //alunoNome: string;
-    ra: string; //alunoRA: string;
-    tituloCertificado: string;
-    dataEnvio: string;
-    arquivoUrl: string; //
-}
-
-interface ResultadoValidacao {
-    certificadoId: number;
-    aprovado: boolean;
-    horasValidadas?: number;
-    observacao?: string;
-}
-
-interface DadosRelatorio {
+interface Aluno {
     ra: string;
-    nomeAluno: string;
+    nome: string;
     curso: string;
-    certificados: {
+    horasLancadas: number;
+    horasFaltantes: number;
+    horasExigidas: number;
+    certificados: Array<{
         id: number;
         titulo: string;
+        categoria: string;
+        tipoAtividade: string;
+        dataEnvio: string;
         horas: number;
-        arquivoUrl: string; //
-    }[];
+        status: string;
+    }>;
 }
 
+// interface AtividadePendente {
+//     id: number;
+//     nomeAluno: string; //alunoNome: string;
+//     ra: string; //alunoRA: string;
+//     tituloCertificado: string;
+//     dataEnvio: string;
+//     arquivoUrl: string; //
+// }
+
+// interface ResultadoValidacao {
+//     certificadoId: number;
+//     aprovado: boolean;
+//     horasValidadas?: number;
+//     observacao?: string;
+// }
+
+// interface DadosRelatorio {
+//     ra: string;
+//     nomeAluno: string;
+//     curso: string;
+//     certificados: {
+//         id: number;
+//         titulo: string;
+//         horas: number;
+//         arquivoUrl: string; //
+//     }[];
+// }
+
 const coordenadorService = {
-    getAtividadesPendentes: async (): Promise<AtividadePendente[]> => {
-        const response = await api.get('/coodenador/atividades-pendentes');
+    // getAtividadesPendentes: async (): Promise<AtividadePendente[]> => {
+    //     const response = await api.get('/coodenador/atividades-pendentes');
+    //     return response.data;
+    // },
+
+    // validarAtividade: async (dados: ResultadoValidacao) => {
+    //     return await api.post('/coordenador/validar-atividade', dados);
+    // },
+
+    buscarAlunoPorRA: async (ra: string): Promise<Aluno> => {
+        const response = await api.get(`/coordenador/alunos/${ra}`); 
         return response.data;
     },
-
-    validarAtividade: async (dados: ResultadoValidacao) => {
-        return await api.post('/coordenador/validar-atividade', dados);
+    
+    aprovarCertificado: async (certificadoId: number) => {
+        return await api.put(`/coordenador/certificados/${certificadoId}/aprovar`);
     },
 
-    buscarAlunoPorRA: async (ra: string) => {
-        const response = await api.get(`/coordenador/alunos/${ra}`); //
-        return response.data;
-    },
-
-    gerarRelatorio: async (ra: string): Promise<DadosRelatorio> => {
-        const response = await api.get(`/coordenador/relatorio/${ra}`);
-        return response.data;
+    rejeitarCertificado: async (certificadoId: number, motivo: string) => {
+        return await api.put(`/coordenador/certificados/${certificadoId}/rejeitar`, { motivo });
     }
+
+    // gerarRelatorio: async (ra: string): Promise<DadosRelatorio> => {
+    //     const response = await api.get(`/coordenador/relatorio/${ra}`);
+    //     return response.data;
+    // }
 };
 
 export default coordenadorService;

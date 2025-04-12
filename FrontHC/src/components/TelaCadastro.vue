@@ -1,55 +1,81 @@
 <script lang="ts">
-  import { defineComponent, ref } from 'vue';
-  import { useRouter } from 'vue-router';
-  
-  export default defineComponent({
-    name: 'RegisterForm',
-    setup() {
-      const fullName = ref<string>('');
-      const curso = ref<string>('');
-      const ra = ref<string>('');
-      const password = ref<string>('');
-      const router = useRouter();
-  
-      const handleRegister = () => {
-        console.log('Nome Completo:', fullName.value);
-        console.log('Curso:', curso.value);
-        console.log('RA:', ra.value);
-        console.log('Senha:', password.value);
-        router.push('/');
-      };
-  
-      return {
-        fullName,
-        curso,
-        ra,
-        password,
-        handleRegister,
-      };
-    },
-  });
+import { defineComponent, ref } from 'vue';
+import { useRouter } from 'vue-router';
+import authService from '@/services/authService';
+
+export default defineComponent({
+  name: 'RegisterForm',
+  setup() {
+    const router = useRouter();
+    const name = ref('');
+    const email = ref('');
+    const password = ref('');
+    const ra = ref('');
+    const errorMessage = ref('');
+    const isLoading = ref(false);
+
+    const handleRegister = async () => {
+      try {
+        isLoading.value = true;
+        errorMessage.value = '';
+
+        await authService.register({
+          name: name.value,
+          email: email.value,
+          password: password.value,
+          ra: ra.value
+        });
+
+        router.push('/TelaLogin');
+      } catch (error) {
+        errorMessage.value = 'Erro ao realizar cadastro. Tente novamente.';
+        console.error('Register error:', error);
+      } finally {
+        isLoading.value = false;
+      }
+    };
+
+    const redirectToLogin = () => {
+      router.push('/');
+    };
+
+    return {
+      name,
+      email,
+      password,
+      ra,
+      errorMessage,
+      isLoading,
+      handleRegister,
+      redirectToLogin,
+    };
+  },
+});
 </script>
 
 <template>
-     <!-- <img src="../assets/LogoFacens.png" alt="Logo" class="logo"> -->
-     <main>
-        <h1 class="title">Horas Complementares</h1>
-        <div class="register-form">
-            <input type="text" placeholder="Nome Completo" v-model="fullName" class="input-field"/>
-            <input type="text" placeholder="Curso" v-model="curso" class="input-field"/>
-            <input type="text" placeholder="RA" v-model="ra" class="input-field"/>
-            <input type="password" placeholder="Senha" v-model="password" class="input-field"/>
-            <button @click="handleRegister" class="register-button">Cadastrar</button>
-        </div>
-     </main>
+  <img src="../assets/Logo-Branco.png" alt="Logo" class="logo">
+  <main>
+    <h1 class="title">Cadastro de Usuário</h1>
+    <div class="register-form">
+      <input type="text" v-model="name" placeholder="Nome completo" class="input-field" :disabled="isLoading"/>
+      <input type="text" v-model="email" placeholder="E-mail" class="input-field" :disabled="isLoading"/>
+      <input type="password" v-model="password" placeholder="Senha" class="input-field" :disabled="isLoading"/>
+      <input type="text" v-model="ra" placeholder="RA" class="input-field" :disabled="isLoading"/>
+      <p v-if="errorMessage" class="error-message">{{ errorMessage }}</p>
+      <button @click="handleRegister" class="register-button" :disabled="isLoading">
+        {{ isLoading ? 'Cadastrando...' : 'Cadastrar' }}
+      </button>
+      <button @click="redirectToLogin" class="login-button" :disabled="isLoading">Voltar para página de Login</button>
+    </div>
+  </main>
 </template>
   
 <style scoped>
 .logo {
-    height: 4.5rem;
-    margin-bottom: 2rem;
-    margin-top: 0.6rem;
-    margin-left: 0.3rem;
+    height: 7rem;
+    margin-left: 30px;
+    margin-top: 20px;
 }
 
 .title {
@@ -95,5 +121,19 @@
 .register-button:hover {
     background-color: #FF4500;
     color: #fff;
+}
+
+.error-message {
+  color: #ff0000;
+  font-size: 14px;
+  margin-top: 10px;
+  text-align: center;
+}
+
+.login-button {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  font-size: 15px;
+  text-decoration: underline;
+  margin-top: -3px;
 }
 </style>  

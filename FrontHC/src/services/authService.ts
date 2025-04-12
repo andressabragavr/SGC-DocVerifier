@@ -1,43 +1,50 @@
 import api from './api';
 
-interface LoginData {
-    login: string;
-    senha: string;
-}
-
-interface CadastroData {
-    nomeAluno: string;
-    curso: string;
-    ra: string;
-    senha: string;
-}
-
 interface LoginResponse {
     token: string;
-    usuario: {
+    user: {
         id: number;
-        nome: string;
-        tipo: 'aluno' | 'coordenador';
-    };
+        name: string;
+        email: string;
+    }
 }
 
-const authService = {
-    login: async (dados: LoginData): Promise<LoginResponse> => {
-        const response = await api.post('/auth/login', dados);
+interface RegisterData {
+    name: string;
+    email: string;
+    ra: string;
+    password: string;
+}
 
-        if (response.data && response.data.token) {
-            localStorage.setItem('token', response.data.token);
-        }
+// interface LoginResponse {
+//     token: string;
+//     usuario: {
+//         id: number;
+//         nome: string;
+//         tipo: 'aluno' | 'coordenador';
+//     };
+// }
+
+const authService = {
+    login: async (email: string, password: string): Promise<LoginResponse> => {
+        const response = await api.post('/auth/login', { email, password });
+
+        //Store the toke in local storage
+        localStorage.setItem('token', response.data.token);
 
         return response.data;
     },
 
-    cadastrarAluno: async(dados: CadastroData) => {
-        return await api.post('/alunos/cadastro', dados);
-    },
+    // cadastrarAluno: async(dados: CadastroData) => {
+    //     return await api.post('/alunos/cadastro', dados);
+    // },
 
-    verificarAuth: () => {
-        return localStorage.getItem('token') !== null;
+    // verificarAuth: () => {
+    //     return localStorage.getItem('token') !== null;
+    // },
+
+    register: async (data: RegisterData): Promise<void> => {
+        await api.post('/auth/register', data);
     },
 
     logout: () => {

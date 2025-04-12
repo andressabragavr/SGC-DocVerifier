@@ -4,7 +4,7 @@ interface DadosAluno {
     nomeAluno: string;
     numCertificados: number; //
     horasLancadas: number;
-    horasFaltantess: number;
+    horasFaltantes: number;
     horasExigidas: number;
 }
 

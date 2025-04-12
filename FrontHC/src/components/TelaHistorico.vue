@@ -1,50 +1,43 @@
 <script lang="ts">
+import { defineComponent } from 'vue';
 import Banner from './Banner.vue';
 
-export default {
-    components: { Banner }
-}
-</script> 
+export default defineComponent({
+    components: { Banner },
+    data() {
+        return {
+            items: [
+                { 
+                    title: 'Phyton para Iniciantes', 
+                    category: 'Livre', 
+                    activityType: 'Cursos de Formação Complementar (fora da IES)', 
+                    submissionDate: '20', 
+                    hours: '20', 
+                    pdfLink: 'link' 
+                },
+            ]
+        };
+    }
+});
+</script>
 
 <template>
     <Banner />
     <main>
         <h1 class="title">Histórico</h1>
-        <div class="subTitlesContainer">
-            <h3 class="subTitles">Título</h3>
-            <!-- <div class="items-container"> -->
-                <h3 class="subTitles">Categoria</h3>
-                <h3 class="subTitles">Tipo de Atividade</h3>
-            <!-- </div>
-            <div class="items-container"> -->
-                
-                <h3 class="subTitles">Data de Envio</h3>
-            <!-- </div> -->
-            <!-- <div class="items-container"> -->
-                <h3 class="subTitles">Horas Atribuídas</h3>
-            <!-- </div> -->
-            <!-- <div class="items-container"> -->
-                <h3 class="subTitles">Visualizar PDF</h3>
-            <!-- </div> -->
-        </div>
         <hr class="separator-line">
-        <div class="items-container">
-            <div class="items-container">
-                <p class="list-item">oi</p>
-            </div>
-            <div class="items-container">
-                <p class="list-item">oi</p>
-            </div>
-            <div class="items-container">
-                <p class="list-item">oi</p>
-            </div>
-            <div class="items-container">
-                <p class="list-item">oi</p>
-            </div>
-            <div class="items-container">
-                <p class="list-item">oi</p>
-            </div>
-        </div>
+        <v-data-table 
+            :headers="[
+                { title: 'Título', key: 'title' },
+                { title: 'Categoria', key: 'category' },
+                { title: 'Tipo de Atividade', key: 'activityType' },
+                { title: 'Data de Envio', key: 'submissionDate' },
+                { title: 'Horas Atribuídas', key: 'hours' },
+                { title: 'Visualizar PDF', key: 'pdfLink' }
+            ]"
+            :items="items" 
+            hide-default-footer
+        ></v-data-table>
     </main>
 </template>
 
@@ -56,22 +49,8 @@ export default {
     padding-bottom: 30px;
 }
 
-.subTitlesContainer {
-    display: flex;
-    flex-direction: row;
-    justify-content: space-around;
-}
-
-.items-container {
-    display: flex;
-    flex-direction: row;
-    justify-content: space-around;
-    /* text-align: center; */
-}
-
-.subTitles {
-    font-family: 'League Spartan', sans-serif;
-    color: #A3A0A0;
+:deep(.v-data-table-header th) {
+    font-weight: bold !important;
 }
 
 .separator-line {
