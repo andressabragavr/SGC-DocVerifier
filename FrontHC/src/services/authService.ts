@@ -44,7 +44,12 @@ const authService = {
     // },
 
     register: async (data: RegisterData): Promise<void> => {
-        await api.post('/auth/register', data);
+        try {
+            await api.post('/auth/register', data);
+        } catch (error: any) {
+            console.error('Error during registration:', error.response?.data || error.message);
+            throw error; // Re-throw the error so it can be handled in the component
+        }
     },
 
     logout: () => {

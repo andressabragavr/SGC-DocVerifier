@@ -54,6 +54,9 @@ export default defineComponent({
         <button type="submit" class="submit-button">Upload</button>
       </form>
     </div>
+    <p class="mensagem">Seu certificado não foi aceito pelo motivo de: duplicidade de documentos</p>
+
+    <br> <br><br><br><br><br><br><br><br>
     <h2 class="title">Tabela de Atividades</h2>
     <p class="Obs">Obs: das 200 horas necessárias para se graduar, 120 devem ser da categoria "Obrigatória" e 80 da categoria "Livre"</p>
     <div class="container-categorias">
@@ -392,7 +395,7 @@ export default defineComponent({
     text-align: center;
     font-family: 'League Spartan', sans-serif;
     margin-top: 4rem;
-    padding-bottom: 30px;
+    padding-bottom: 50px;
 }
 
 .Obs {
@@ -503,6 +506,14 @@ input[type="file"] {
   
 .submit-button:hover {
     background-color: #000;
+}
+
+.mensagem {
+  text-align: center;
+  font-family: 'League Spartan', sans-serif;
+  font-size: 18px;
+  margin-top: 40px;
+  color: red;
 }
 
 @media only screen and (max-width: 1300px) {

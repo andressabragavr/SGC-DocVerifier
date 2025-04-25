@@ -2,7 +2,7 @@ import api from './api';
 
 interface DadosAluno {
     nomeAluno: string;
-    numCertificados: number; //
+    numCertificados: number; 
     horasLancadas: number;
     horasFaltantes: number;
     horasExigidas: number;
@@ -17,6 +17,16 @@ interface Certificado {
     horas: number;
     arquivoUrl: string; //
 }
+
+// interface HistoricoCertificado {
+//     id: number;
+//     titulo: string;
+//     categoria: string;
+//     tipoAtividade: string;
+//     dataEnvio: string;
+//     horas: number;
+//     arquivoUrl: string; //
+// }
 
 const alunoService = {
     getDadosAluno: async (): Promise<DadosAluno> => {

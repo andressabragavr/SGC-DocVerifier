@@ -28,8 +28,8 @@ export default defineComponent({
 
 <template>
     <Banner />
-    <main>
-        <h3 class="welcome">Bem-vindo {{ dadosAluno.nomeAluno }}!</h3>
+        <h3 class="welcome">Bem-vindo(a) {{ dadosAluno.nomeAluno }}!</h3>
+        <div class="container-graph">
         <div class="itemsContainer">
             <div>
                 <h2 class="titles">Certificados Cadastrados</h2>
@@ -48,10 +48,15 @@ export default defineComponent({
                 <h1 class="hours">{{ dadosAluno.horasExigidas }}</h1>
             </div>
         </div>
-    </main>
+    <img src="../assets/grafico_pizza.jpeg" class="graph" />
+</div>
 </template>
 
 <style scoped>
+* {
+    font-family: 'League Spartan', sans-serif;
+}
+
 .welcome {
     text-align: left;
     font-family: 'League Spartan', sans-serif;
@@ -62,8 +67,9 @@ export default defineComponent({
 
 .itemsContainer {
     display: flex;
-    flex-direction: row;
+    flex-direction: column;
     justify-content: space-around;
+    /* margin-left: 200px; */
 }
 
 .titles {
@@ -76,5 +82,18 @@ export default defineComponent({
     text-align: center;
     font-family: 'League Spartan', sans-serif;
     margin-top: 20px;
+}
+
+.container-graph {
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: space-around;
+    margin-top: 50px;
+}
+
+.graph {
+    margin-top: 80px;
+    margin-left: 150px;
 }
 </style>
