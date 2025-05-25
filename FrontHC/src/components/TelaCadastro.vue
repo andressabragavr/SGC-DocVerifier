@@ -1,4 +1,5 @@
 <script lang="ts">
+// TelaCadastro.vue
 import { defineComponent, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import authService from '@/services/authService';
@@ -26,7 +27,7 @@ export default defineComponent({
           ra: ra.value
         });
 
-        router.push('/TelaLogin');
+        router.push('/');
       } catch (error) {
         errorMessage.value = 'Erro ao realizar cadastro. Tente novamente.';
         console.error('Register error:', error);

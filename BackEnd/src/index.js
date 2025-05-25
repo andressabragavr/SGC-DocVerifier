@@ -1,37 +1,35 @@
+// index.js
 import express from 'express'
-const PORT = 3000
-const users = []
+import cors from 'cors'
 import { PrismaClient } from '@prisma/client';
 
+const PORT = 3000
 const prisma = new PrismaClient();
-
 const app = express()
+
 app.use(express.json())
+app.use(cors()) // ✅ Aqui o CORS
 
 app.post('/usuarios', async (req, res) => {
+  const user = await prisma.user.create({
+    data: {
+      name: req.body.name,
+      email: req.body.email,
+      password: req.body.password,
+      ra: req.body.ra
+    }
+  });
 
-    await prisma.user.create({
-        data: {
-            email: req.body.email,
-            name: req.body.name,
-            age: req.body.age
-        }
-    })
-
-
-    res.status(201).json(req.body)
+  res.status(201).json(user);
 })
 
-app.get('/usuarios', async(req, res) =>{
-    
-    const users = await prisma.user.findMany()
 
+app.get('/usuarios', async(req, res) =>{
+    const users = await prisma.user.findMany()
     res.status(200).json(users)
 })
 
 app.put('/usuarios/:id', async (req, res) => {
-
-
     await prisma.user.update({
         where: {
             id: req.params.id
@@ -42,20 +40,31 @@ app.put('/usuarios/:id', async (req, res) => {
             age: req.body.age
         }
     })
-
-
     res.status(201).json(req.body)
 })
 
-app.listen(3000, () => {
-    console.log('Server is running on port 3000');
-  });
-  
+app.post('/login', async (req, res) => {
+  const { ra, password } = req.body;
 
-// app.use('/usuarios', async(req, res) =>{
-    
-//     const users = await prisma.user.findMany()
+  try {
+    const user = await prisma.user.findUnique({
+      where: { ra }
+    });
 
-//     res.status(200).json(users)
-// })
+    if (!user || user.password !== password) {
+      return res.status(401).json({ error: 'Credenciais inválidas' });
+    }
 
+    // Remove a senha da resposta
+    const { password: _, ...userSemSenha } = user;
+
+    res.status(200).json(userSemSenha);
+  } catch (error) {
+    console.error('Erro no login:', error);
+    res.status(500).json({ error: 'Erro interno no login' });
+  }
+});
+
+app.listen(PORT, () => {
+    console.log(`Server is running on port ${PORT}`);
+});

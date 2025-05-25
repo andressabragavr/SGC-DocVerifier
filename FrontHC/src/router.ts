@@ -11,30 +11,14 @@ import TelaValidarAtividades from './components/TelaValidarAtividades.vue';
 
 
 const routes: Array<RouteRecordRaw> = [
-    {
-      path: '/', name: 'TelaLogin', component: TelaLogin
-    },
-    {
-      path: '/TelaCadastro', name: 'TelaCadastro', component: TelaCadastro
-    },
-    {
-      path: '/TelaInicialAluno', name: 'TelaInicialAluno', component: TelaInicialAluno
-    },
-    {
-      path: '/TelaCadastroCertificados', name: 'TelaCadastroCertificados', component: TelaCadastroCertificados
-    },
-    {
-      path: '/TelaHistorico', name: 'TelaHistorico', component: TelaHistorico
-    },
-    {
-      path: '/TelaConsultarHistorico', name: 'TelaConsultarHistorico', component: TelaConsultarHistorico
-    },
-    {
-      path: '/TelaRelatorio', name: 'TelaRelatorio', component: TelaRelatorio
-    },
-    {
-      path: '/TelaValidarAtividades', name: 'TelaValidarAtividades', component: TelaValidarAtividades
-    }
+    { path: '/', name: 'TelaLogin', component: TelaLogin },
+    { path: '/TelaCadastro', name: 'TelaCadastro', component: TelaCadastro },
+    { path: '/TelaInicialAluno', name: 'TelaInicialAluno', component: TelaInicialAluno },
+    { path: '/TelaCadastroCertificados', name: 'TelaCadastroCertificados', component: TelaCadastroCertificados },
+    { path: '/TelaHistorico', name: 'TelaHistorico', component: TelaHistorico},
+    { path: '/TelaConsultarHistorico', name: 'TelaConsultarHistorico', component: TelaConsultarHistorico },
+    { path: '/TelaRelatorio', name: 'TelaRelatorio', component: TelaRelatorio },
+    { path: '/TelaValidarAtividades', name: 'TelaValidarAtividades', component: TelaValidarAtividades }
   ];
 
   const router = createRouter({
