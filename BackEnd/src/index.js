@@ -68,3 +68,62 @@ app.post('/login', async (req, res) => {
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
 });
+
+app.get('/usuarios/:ra/certificados', async (req, res) => {
+  const { ra } = req.params;
+
+  try {
+    const user = await prisma.user.findUnique({
+      where: { ra },
+      include: { certificados: true } // nome do relacionamento no schema.prisma
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: 'Usuário não encontrado' });
+    }
+
+    res.status(200).json(user.certificados);
+  } catch (error) {
+    console.error('Erro ao buscar certificados:', error);
+    res.status(500).json({ error: 'Erro interno no servidor' });
+  }
+});
+
+app.post('/certificados', async (req, res) => {
+  const {
+    ra,
+    titulo,
+    categoria,
+    tipoAtividade,
+    dataEnvio,
+    horasAtribuidas,
+    urlPDF,
+    status
+  } = req.body;
+
+  try {
+    const user = await prisma.user.findUnique({ where: { ra } });
+
+    if (!user) {
+      return res.status(404).json({ error: 'Usuário com esse RA não encontrado' });
+    }
+
+    const certificado = await prisma.certificado.create({
+      data: {
+        titulo,
+        categoria,
+        tipoAtividade,
+        dataEnvio: new Date(dataEnvio),
+        horasAtribuidas,
+        urlPDF,
+        status,
+        userId: user.id
+      }
+    });
+
+    res.status(201).json(certificado);
+  } catch (error) {
+    console.error('Erro ao adicionar certificado:', error);
+    res.status(500).json({ error: 'Erro interno ao adicionar certificado' });
+  }
+});

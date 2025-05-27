@@ -20,4 +20,18 @@ model User {
   email    String   @unique
   password String
   ra       String   @unique
+  certificados Certificado[]
+}
+
+model Certificado {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  titulo          String
+  categoria       String
+  tipoAtividade   String
+  dataEnvio       DateTime
+  horasAtribuidas Int
+  urlPDF          String
+  status          String
+  userId          String
+  user            User     @relation(fields: [userId], references: [id])
 }

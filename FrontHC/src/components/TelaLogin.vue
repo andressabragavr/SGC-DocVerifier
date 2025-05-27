@@ -18,7 +18,8 @@ export default defineComponent({
         isLoading.value = true;
         errorMessage.value = '';
         
-        await authService.login(login.value, password.value);
+        const response = await authService.login(login.value, password.value);
+        localStorage.setItem('usuario', JSON.stringify(response.data));
         router.push('/TelaInicialAluno');
       } catch (error) {
         errorMessage.value = 'Credenciais inválidas. Tente novamente.';

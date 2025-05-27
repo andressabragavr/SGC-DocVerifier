@@ -4,68 +4,66 @@ import alunoService from '../services/alunoService';
 import Banner from './Banner.vue';
 
 export default defineComponent({
-    components: { Banner },
-    data() {
-        return {
-            items: [
-                // { 
-                //     title: 'Phyton para Iniciantes', 
-                //     category: 'Livre', 
-                //     activityType: 'Cursos de Formação Complementar (fora da IES)', 
-                //     submissionDate: '01/03/2023', 
-                //     hours: '20', 
-                //     pdfLink: 'link',
-                //     status: 'Aprovado',
-                // },
-                // { 
-                //     title: 'JavaScript Avançado', 
-                //     category: 'Livre', 
-                //     activityType: 'Cursos de Formação Complementar (fora da IES)', 
-                //     submissionDate: '20/04/2024', 
-                //     hours: '15', 
-                //     pdfLink: 'link',
-                //     status: 'Pendente',
-                // },
-            ]
-        };
-    },
-    // async mounted() {
-    //     try {
-    //         const response = await alunoService.getCertificados();
-    //         this.items = response.map(certificado => ({
-    //             title: certificado.nome,
-    //             category: certificado.categoria,
-    //             activityType: certificado.tipoAtividade,
-    //             submissionDate: new Date(certificado.dataEnvio).toLocaleDateString('pt-BR'),
-    //             hours: certificado.horasAtribuidas,
-    //             pdfLink: certificado.urlPDF,
-    //             status: certificado.status
-    //         }));
-    //     } catch (error) {
-    //         console.error('Erro ao carregar certificados:', error);
-    //     }
-    // }
+  components: { Banner },
+  data() {
+    return {
+        headers: [
+        { title: 'Título', key: 'title' },
+        { title: 'Categoria', key: 'category' },
+        { title: 'Tipo de Atividade', key: 'activityType' },
+        { title: 'Data de Envio', key: 'submissionDate' },
+        { title: 'Horas Atribuídas', key: 'hours' },
+        { title: 'Visualizar PDF', key: 'pdfLink' },
+        { title: 'Status', key: 'status' }
+        ],
+        items: [] as {
+            title: string;
+            category: string;
+            activityType: string;
+            submissionDate: string;
+            hours: number;
+            pdfLink: string;
+            status: string;
+        }[]
+    };
+  },
+  async mounted() {
+    try {
+      const response = await alunoService.getCertificados();
+
+      this.items = response.data.map((certificado: any) => ({
+        title: certificado.titulo,
+        category: certificado.categoria,
+        activityType: certificado.tipoAtividade,
+        submissionDate: new Date(certificado.dataEnvio).toLocaleDateString('pt-BR'),
+        hours: certificado.horasAtribuidas,
+        pdfLink: certificado.urlPDF,
+        status: certificado.status
+      }));
+    } catch (error) {
+      console.error('Erro ao carregar certificados:', error);
+    }
+  }
 });
 </script>
+
 
 <template>
     <Banner />
     <main>
         <h1 class="title">Histórico</h1>
         <hr class="separator-line">
-        <v-data-table 
-            :headers="[
-                { title: 'Título', key: 'title' },
-                { title: 'Categoria', key: 'category' },
-                { title: 'Tipo de Atividade', key: 'activityType' },
-                { title: 'Data de Envio', key: 'submissionDate' },
-                { title: 'Horas Atribuídas', key: 'hours' },
-                { title: 'Visualizar PDF', key: 'pdfLink' },
-                { title: 'Status', key: 'status' }
-            ]"
-            :items="items" 
-            hide-default-footer
-        ></v-data-table>
+        <v-data-table
+        :headers="headers"
+        :items="items"
+        hide-default-footer
+        >
+        <template #item.pdfLink="{ item }">
+            <a :href="item.pdfLink" target="_blank" rel="noopener noreferrer">
+            <button class="view-pdf-button">Abrir PDF</button>
+            </a>
+        </template>
+        </v-data-table>
     </main>
 </template>
 
@@ -88,4 +86,20 @@ export default defineComponent({
     margin: 20px 0;
     border: none;
 }
+
+.view-pdf-button {
+  background-color: #FF8C00;
+  border: none;
+  color: white;
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: 'League Spartan', sans-serif;
+  font-weight: bold;
+}
+
+.view-pdf-button:hover {
+  background-color: #FF4500;
+}
+
 </style>

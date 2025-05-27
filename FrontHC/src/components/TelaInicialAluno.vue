@@ -18,7 +18,18 @@ export default defineComponent({
     },
     async mounted() {
         try {
-            this.dadosAluno = await alunoService.getDadosAluno();
+            const usuario = localStorage.getItem('usuario');
+            if (usuario) {
+            const userObj = JSON.parse(usuario);
+            this.dadosAluno.nomeAluno = userObj.name;
+            }
+
+            // const dados = await alunoService.getDadosAluno();
+            // this.dadosAluno.numCertificados = dados.numCertificados;
+            // this.dadosAluno.horasLancadas = dados.horasLancadas;
+            // this.dadosAluno.horasFaltantes = dados.horasFaltantes;
+            // this.dadosAluno.horasExigidas = dados.horasExigidas;
+
         } catch (error) {
             console.error('Error fetching dashboard data:', error);
         }
@@ -48,7 +59,7 @@ export default defineComponent({
                 <h1 class="hours">{{ dadosAluno.horasExigidas }}</h1>
             </div>
         </div>
-    <img src="../assets/grafico_pizza.jpeg" class="graph" />
+    <!-- <img src="../assets/grafico_pizza.jpeg" class="graph" /> -->
 </div>
 </template>
 
@@ -67,9 +78,10 @@ export default defineComponent({
 
 .itemsContainer {
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
     justify-content: space-around;
-    /* margin-left: 200px; */
+    align-items: center;
+    width: 80%;
 }
 
 .titles {
