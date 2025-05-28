@@ -12,28 +12,41 @@ export default defineComponent({
                 numCertificados: 0,
                 horasLancadas: 0,
                 horasFaltantes: 0,
-                horasExigidas: 0
+                horasExigidas: 200
             }
         }
     },
     async mounted() {
-        try {
-            const usuario = localStorage.getItem('usuario');
-            if (usuario) {
-            const userObj = JSON.parse(usuario);
-            this.dadosAluno.nomeAluno = userObj.name;
-            }
+    try {
+      const usuario = localStorage.getItem('usuario');
+      if (usuario) {
+        const userObj = JSON.parse(usuario);
+        this.dadosAluno.nomeAluno = userObj.name;
 
-            // const dados = await alunoService.getDadosAluno();
-            // this.dadosAluno.numCertificados = dados.numCertificados;
-            // this.dadosAluno.horasLancadas = dados.horasLancadas;
-            // this.dadosAluno.horasFaltantes = dados.horasFaltantes;
-            // this.dadosAluno.horasExigidas = dados.horasExigidas;
+        // Busca os certificados do aluno via RA
+        const response = await alunoService.getCertificadosPorRa(userObj.ra);
+        const certificados = response.data;
 
-        } catch (error) {
-            console.error('Error fetching dashboard data:', error);
-        }
+        // Número de certificados
+        this.dadosAluno.numCertificados = certificados.length;
+
+        // Soma das horas atribuídas
+        const totalHoras = certificados.reduce(
+          (acc: number, cert: any) => acc + cert.horasAtribuidas,
+          0
+        );
+        this.dadosAluno.horasLancadas = totalHoras;
+
+        // Cálculo de faltantes
+        this.dadosAluno.horasFaltantes = Math.max(
+          0,
+          this.dadosAluno.horasExigidas - totalHoras
+        );
+      }
+    } catch (error) {
+      console.error('Erro ao carregar dados do aluno:', error);
     }
+  }
 });
 </script>
 
