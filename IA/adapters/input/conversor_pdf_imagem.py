@@ -20,3 +20,9 @@ class ConversorPDFImagem:
             caminhos_imagens.append(caminho_imagem)
             
         return caminhos_imagens
+    
+    def _limpar_pasta(self, pasta: str) -> None:
+        for arquivo in os.listdir(pasta):
+            caminho = os.path.join(pasta, arquivo)
+            if os.path.isfile(caminho):
+                os.remove(caminho)
