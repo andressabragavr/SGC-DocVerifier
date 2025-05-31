@@ -21,7 +21,8 @@ app.post('/usuarios', async (req, res) => {
       name: req.body.name,
       email: req.body.email,
       password: req.body.password,
-      ra: req.body.ra
+      ra: req.body.ra,
+      tipo: req.body.tipo 
     }
   });
 
@@ -65,7 +66,7 @@ app.post('/login', async (req, res) => {
     // Remove a senha da resposta
     const { password: _, ...userSemSenha } = user;
 
-    res.status(200).json(userSemSenha);
+    res.status(200).json(userSemSenha); // isso já inclui o tipo
   } catch (error) {
     console.error('Erro no login:', error);
     res.status(500).json({ error: 'Erro interno no login' });

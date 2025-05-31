@@ -5,6 +5,7 @@ interface RegisterData {
   email: string;
   password: string;
   ra: string;
+  tipo: string;
 }
 
 const register = async (data: RegisterData) => {

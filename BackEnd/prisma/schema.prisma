@@ -3,6 +3,7 @@
 
 // Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
 // Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+//schema.prisma
 
 generator client {
   provider = "prisma-client-js"
@@ -20,6 +21,7 @@ model User {
   email    String   @unique
   password String
   ra       String   @unique
+  tipo     String   
   certificados Certificado[]
 }
 
@@ -32,6 +34,7 @@ model Certificado {
   horasAtribuidas Int
   urlPDF          String
   status          String
-  userId          String
+  userId          String   @db.ObjectId // <-- Add this
+  
   user            User     @relation(fields: [userId], references: [id])
 }
