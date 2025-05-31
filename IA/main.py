@@ -14,7 +14,6 @@ if __name__ == "__main__":
     # Detector MIME
     detector = DetectorTipoService()
     tipo = detector.detectar_tipo_arquivo(caminho_arquivo)
-    print(f"Tipo de arquivo detectado: {tipo}")
     
     # Conersão tipos
     if tipo == "pdf":
