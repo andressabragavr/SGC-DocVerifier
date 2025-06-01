@@ -3,6 +3,7 @@ import os
 from application.services.detector_tipo_service import DetectorTipoService
 from adapters.input.conversor_pdf_imagem import ConversorPDFImagem
 from application.services.ocr_service import OCRService
+from application.services.rag_service import contexto_rag
 
 if __name__ == "__main__":
     
@@ -29,3 +30,7 @@ if __name__ == "__main__":
     ocr = OCRService(teseract_cmd=tesseract_path)
     textos_extraidos = ocr.extrair_texto(pasta_imagens)
     num_cert = len(textos_extraidos)
+    
+    # RAG
+    texto_completo = "\n".join(textos_extraidos.values())
+    contexto = contexto_rag(texto_completo, query="Extração de informações do certificado")
