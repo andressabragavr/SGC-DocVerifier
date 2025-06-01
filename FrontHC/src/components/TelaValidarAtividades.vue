@@ -1,52 +1,55 @@
 <script lang="ts">
+import { defineComponent } from 'vue';
+import coordenadorService from '../services/coordenadorService';
 import BannerCoordenador from './BannerCoordenador.vue';
 
-export default {
-    components: { BannerCoordenador },
-    data() {
-        return {
-            dropdownItems: [
-                { 
-                    title: 'Andressa Braga Vieira Rodrigues - 210058 - Engenharia da Computação',
-                    content:  [
-                        'Tipo de Atividade: Curso de Extensão',
-                        'Título: Python para Iniciantes',
-                        'Quantidade de Horas: 20 horas',
-                        'Data de Conclusão: 10/04/2024',
-                    ],
-                    isOpen: false
-                },
-                {
-                    title: 'Diogo Vital Vieira - 211202 - Engenharia da Computação',
-                    content: {
-                        tipoCertificado: 'Iniciação Científica',
-                        categoria: 'Obrigatória',
-                        quantidadeHoras: '60 horas',
-                        dataConclusao: '15/03/2024',
-                        status: 'Pendente'
-                    },
-                    isOpen: false
-                },
-                {
-                    title: 'Pedro Henrique Lisboa - 210123 - Engenharia Mecatrônica',
-                    content: {
-                        tipoCertificado: 'Monitor na Instituição',
-                        categoria: 'Obrigatória',
-                        quantidadeHoras: '40 horas',
-                        dataConclusao: '01/04/2024',
-                        status: 'Pendente'
-                    },
-                    isOpen: false
-                }
-            ]
-        }
-    },
-    methods: {
-        toggleDropdown(index: number) {
-            this.dropdownItems[index].isOpen = !this.dropdownItems[index].isOpen;
-        }
+export default defineComponent({
+  components: { BannerCoordenador },
+  data() {
+    return {
+      dropdownItems: [] as any[]
+    };
+  },
+  async mounted() {
+    try {
+      const alunos = await coordenadorService.getAlunosComCertificados();
+
+      // Filtra apenas os certificados pendentes
+      this.dropdownItems = alunos.flatMap((aluno: any) => {
+        return aluno.certificados
+          .filter((cert: any) => cert.status === 'Pendente')
+          .map((cert: any) => ({
+            id: cert.id,
+            title: `${aluno.name} - ${aluno.ra} - ${aluno.curso}`,
+            content: [
+              `Tipo de Atividade: ${cert.tipoAtividade}`,
+              `Título: ${cert.titulo}`,
+              `Quantidade de Horas: ${cert.horasAtribuidas} horas`,
+              `Data de Conclusão: ${new Date(cert.dataConclusao).toLocaleDateString('pt-BR')}`
+            ],
+            isOpen: false
+          }));
+      });
+    } catch (error) {
+      console.error('Erro ao buscar certificados:', error);
     }
-}
+  },
+  methods: {
+    toggleDropdown(index: number) {
+      this.dropdownItems[index].isOpen = !this.dropdownItems[index].isOpen;
+    },
+    async acceptItem(index: number) {
+      const certId = this.dropdownItems[index].id;
+      await coordenadorService.aprovarCertificado(certId);
+      this.dropdownItems.splice(index, 1); // remove da tela
+    },
+    async rejectItem(index: number) {
+      const certId = this.dropdownItems[index].id;
+      await coordenadorService.rejeitarCertificado(certId);
+      this.dropdownItems.splice(index, 1); // remove da tela
+    }
+  }
+});
 </script>
 
 <template>

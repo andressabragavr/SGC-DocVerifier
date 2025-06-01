@@ -1,6 +1,6 @@
 // index.js
-import express from 'express'
-import cors from 'cors'
+import express from 'express';
+import cors from 'cors';
 import { PrismaClient } from '@prisma/client';
 import multer from 'multer';
 import path from 'path';
@@ -8,88 +8,71 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 
-const PORT = 3000
+const app = express();
+const PORT = 3000;
 const prisma = new PrismaClient();
-const app = express()
 
-app.use(express.json())
-app.use(cors()) // ✅ Aqui o CORS
+// Diretório de upload
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const uploadPath = path.join(__dirname, '..', 'uploads');
+if (!fs.existsSync(uploadPath)) {
+  fs.mkdirSync(uploadPath);
+}
 
+// Configuração do multer
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, uploadPath),
+  filename: (req, file, cb) => cb(null, Date.now() + '-' + file.originalname)
+});
+const upload = multer({ storage });
+
+// Middlewares
+app.use(express.json());
+app.use(cors());
+app.use('/uploads', express.static(uploadPath));
+
+// Rotas de usuários
 app.post('/usuarios', async (req, res) => {
-  const user = await prisma.user.create({
-    data: {
-      name: req.body.name,
-      email: req.body.email,
-      password: req.body.password,
-      ra: req.body.ra,
-      tipo: req.body.tipo 
-    }
-  });
-
-  res.status(201).json(user);
-})
-
-
-app.get('/usuarios', async(req, res) =>{
-    const users = await prisma.user.findMany()
-    res.status(200).json(users)
-})
-
-app.put('/certificados/:id', async (req, res) => {
-  const { id } = req.params;
-
   try {
-    const certificadoAtualizado = await prisma.certificado.update({
-      where: { id },
-      data: req.body
-    });
-
-    res.status(200).json(certificadoAtualizado);
+    const user = await prisma.user.create({ data: req.body });
+    res.status(201).json(user);
   } catch (error) {
-    console.error('Erro ao atualizar certificado:', error);
-    res.status(500).json({ error: 'Erro interno ao atualizar certificado' });
+    console.error('Erro ao criar usuário:', error);
+    res.status(500).json({ error: 'Erro ao criar usuário' });
   }
 });
 
+app.get('/usuarios', async (req, res) => {
+  const users = await prisma.user.findMany();
+  res.status(200).json(users);
+});
+
+// Login
 app.post('/login', async (req, res) => {
   const { ra, password } = req.body;
-
   try {
-    const user = await prisma.user.findUnique({
-      where: { ra }
-    });
-
+    const user = await prisma.user.findUnique({ where: { ra } });
     if (!user || user.password !== password) {
       return res.status(401).json({ error: 'Credenciais inválidas' });
     }
-
-    // Remove a senha da resposta
     const { password: _, ...userSemSenha } = user;
-
-    res.status(200).json(userSemSenha); // isso já inclui o tipo
+    res.status(200).json(userSemSenha);
   } catch (error) {
     console.error('Erro no login:', error);
     res.status(500).json({ error: 'Erro interno no login' });
   }
 });
 
-app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
-});
-
+// Certificados por RA
 app.get('/usuarios/:ra/certificados', async (req, res) => {
   const { ra } = req.params;
-
   try {
     const user = await prisma.user.findUnique({
       where: { ra },
-      include: { certificados: true } // nome do relacionamento no schema.prisma
+      include: { certificados: true }
     });
-
-    if (!user) {
-      return res.status(404).json({ error: 'Usuário não encontrado' });
-    }
-
+    if (!user) return res.status(404).json({ error: 'Usuário não encontrado' });
     res.status(200).json(user.certificados);
   } catch (error) {
     console.error('Erro ao buscar certificados:', error);
@@ -97,24 +80,48 @@ app.get('/usuarios/:ra/certificados', async (req, res) => {
   }
 });
 
-app.post('/certificados', async (req, res) => {
+// Cadastro de certificado (upload)
+app.post('/certificados/upload', upload.single('arquivo'), async (req, res) => {
   const {
-    ra,
-    titulo,
-    categoria,
-    tipoAtividade,
-    dataEnvio,
-    horasAtribuidas,
-    urlPDF,
-    status
+    ra, titulo, categoria, tipoAtividade,
+    dataEnvio, horasAtribuidas, status
   } = req.body;
+  const file = req.file;
+  if (!file) return res.status(400).json({ error: 'Arquivo não enviado' });
 
   try {
     const user = await prisma.user.findUnique({ where: { ra } });
+    if (!user) return res.status(404).json({ error: 'Usuário não encontrado' });
 
-    if (!user) {
-      return res.status(404).json({ error: 'Usuário com esse RA não encontrado' });
-    }
+    const certificado = await prisma.certificado.create({
+      data: {
+        titulo,
+        categoria,
+        tipoAtividade,
+        dataEnvio: new Date(dataEnvio),
+        horasAtribuidas: parseInt(horasAtribuidas),
+        urlPDF: `http://localhost:3000/uploads/${file.filename}`,
+        status,
+        userId: user.id
+      }
+    });
+
+    res.status(201).json(certificado);
+  } catch (error) {
+    console.error('Erro ao salvar certificado:', error);
+    res.status(500).json({ error: 'Erro interno ao salvar certificado' });
+  }
+});
+
+// Cadastro de certificado (sem upload)
+app.post('/certificados', async (req, res) => {
+  const {
+    ra, titulo, categoria, tipoAtividade,
+    dataEnvio, horasAtribuidas, urlPDF, status
+  } = req.body;
+  try {
+    const user = await prisma.user.findUnique({ where: { ra } });
+    if (!user) return res.status(404).json({ error: 'Usuário não encontrado' });
 
     const certificado = await prisma.certificado.create({
       data: {
@@ -136,71 +143,103 @@ app.post('/certificados', async (req, res) => {
   }
 });
 
-// Cria pasta 'uploads' se não existir
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
-const uploadPath = path.join(__dirname, '..', 'uploads');
-if (!fs.existsSync(uploadPath)) {
-  fs.mkdirSync(uploadPath);
-}
-
-// Configuração do multer
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, uploadPath);
-  },
-  filename: function (req, file, cb) {
-    const uniqueName = Date.now() + '-' + file.originalname;
-    cb(null, uniqueName);
+// Aprovar certificado
+app.put('/certificados/:id/aprovar', async (req, res) => {
+  try {
+    const { id } = req.params;
+    await prisma.certificado.update({
+      where: { id },
+      data: { status: 'Aprovado' }
+    });
+    res.status(200).json({ message: 'Certificado aprovado.' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Erro ao aprovar certificado.' });
   }
 });
-const upload = multer({ storage });
 
-// Torna os arquivos acessíveis publicamente
-app.use('/uploads', express.static(uploadPath));
+// Rejeitar (excluir) certificado
+app.delete('/certificados/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    await prisma.certificado.delete({ where: { id } });
+    res.status(200).json({ message: 'Certificado removido com sucesso.' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Erro ao remover certificado.' });
+  }
+});
 
-// Rota para upload e cadastro
-app.post('/certificados/upload', upload.single('arquivo'), async (req, res) => {
-  const {
-    ra,
-    titulo,
-    categoria,
-    tipoAtividade,
-    dataEnvio,
-    horasAtribuidas,
-    status
-  } = req.body;
+// Certificados para validação (coordenador)
+app.get('/certificados/validacao', async (req, res) => {
+  try {
+    const alunos = await prisma.user.findMany({
+      where: { tipo: 'aluno' },
+      include: { certificados: true }
+    });
+    res.status(200).json(alunos);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Erro ao buscar dados para validação' });
+  }
+});
 
-  const file = req.file;
+// GET /certificados/busca
+app.get('/certificados/busca', async (req, res) => {
+  const { filtro, valor } = req.query;
 
-  if (!file) {
-    return res.status(400).json({ error: 'Arquivo não enviado' });
+  if (!filtro || !valor) {
+    return res.status(400).json({ error: 'Parâmetros inválidos' });
   }
 
   try {
-    const user = await prisma.user.findUnique({ where: { ra } });
+    let usuario = null;
+    let certificados = [];
 
-    if (!user) {
-      return res.status(404).json({ error: 'Usuário não encontrado' });
+    if (filtro === 'ra' || filtro === 'name') {
+      usuario = await prisma.user.findFirst({
+        where: {
+          [filtro]: {
+            contains: valor,
+            mode: 'insensitive'
+          }
+        },
+        include: { certificados: true }
+      });
+
+      if (usuario) certificados = usuario.certificados;
+    } else if (filtro === 'tipoAtividade' || filtro === 'titulo') {
+      // Busca em todos os usuários que têm certificados correspondentes
+      const resultado = await prisma.certificado.findMany({
+        where: {
+          [filtro]: {
+            contains: valor,
+            mode: 'insensitive'
+          }
+        },
+        include: { user: true }
+      });
+
+      if (resultado.length > 0) {
+        usuario = resultado[0].user;
+        certificados = resultado;
+      }
     }
 
-    const certificado = await prisma.certificado.create({
-      data: {
-        titulo,
-        categoria,
-        tipoAtividade,
-        dataEnvio: new Date(dataEnvio),
-        horasAtribuidas: parseInt(horasAtribuidas),
-        urlPDF: `http://localhost:3000/uploads/${file.filename}`,
-        status,
-        userId: user.id
-      }
-    });
+    if (!usuario || certificados.length === 0) {
+      return res.status(404).json({ error: 'Nenhum resultado encontrado' });
+    }
 
-    res.status(201).json(certificado);
+    res.json({ usuario, certificados });
   } catch (error) {
-    console.error('Erro ao salvar certificado:', error);
-    res.status(500).json({ error: 'Erro interno ao salvar certificado' });
+    console.error('Erro ao buscar certificados:', error);
+    res.status(500).json({ error: 'Erro interno no servidor' });
   }
+});
+
+
+
+// Inicia servidor
+app.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`);
 });

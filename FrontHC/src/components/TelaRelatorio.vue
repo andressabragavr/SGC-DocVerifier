@@ -1,116 +1,117 @@
 <script lang="ts">
 import BannerCoordenador from './BannerCoordenador.vue';
+import axios from 'axios';
 
 export default {
-    components: { BannerCoordenador },
-    data() {
-        return {
-            isDropdownOpen: false,
-            selectedOption: 'Procurar por ...',
-            searchQuery: '',
-            options: [
-                'RA',
-                'Nome do Aluno',
-                'Tipo de Atividade',
-                'Título',
-            ],
-            items: [
-                {
-                    title: 'Python para Iniciantes',
-                    category: 'Livre',
-                    activityType: 'Curso de Extensão',
-                    submissionDate: '20/04/2024',
-                    hours: 20,
-                    pdfLink: 'documento1.pdf',
-                },
-                {
-                    title: 'JavaScript Avançado',
-                    category: 'Livre',
-                    activityType: 'Curso de Extensão',
-                    submissionDate: '10/04/2024',
-                    hours: 15,
-                    pdfLink: 'documento2.pdf',
-                },
-                {
-                    title: 'Technische - Hochschule Ingolstadt',
-                    category: 'Livre',
-                    activityType: 'Intercâmbio',
-                    submissionDate: '22/02/2024',
-                    hours: 40,
-                    pdfLink: 'documento3.pdf',
-                },
-                {
-                    title: 'Making Roads Safer: A Vehicle Blind Spot Alert System Co-Design With End-Users',
-                    category: 'Obrigatória',
-                    activityType: 'Artigo Científico',
-                    submissionDate: '20/10/2023',
-                    hours: 40,
-                    pdfLink: 'documento4.pdf',
-                },
-            ]
-        }
+  components: { BannerCoordenador },
+  data() {
+    return {
+      isDropdownOpen: false,
+      selectedOption: 'Procurar por ...',
+      searchQuery: '',
+      options: ['RA', 'Nome do Aluno', 'Tipo de Atividade', 'Título'],
+      items: [],
+      alunoInfo: null as null | { ra: string; name: string; curso: string },
+      nenhumResultado: false,
+
+    };
+  },
+  methods: {
+    toggleDropdown() {
+      this.isDropdownOpen = !this.isDropdownOpen;
     },
-    methods: {
-        toggleDropdown() {
-            this.isDropdownOpen = !this.isDropdownOpen
-        },
-        selectOption(option: string) {
-            this.selectedOption = option
-            this.isDropdownOpen = false
+    selectOption(option: string) {
+      this.selectedOption = option;
+      this.isDropdownOpen = false;
+    },
+    async buscar() {
+        if (!this.searchQuery || this.selectedOption === 'Procurar por ...') {
+            alert('Selecione uma opção e preencha a busca.');
+            return;
+        }
+
+        const campoMap: Record<string, string> = {
+            'RA': 'ra',
+            'Nome do Aluno': 'name',
+            'Tipo de Atividade': 'tipoAtividade',
+            'Título': 'titulo'
+        };
+
+        const filtro = campoMap[this.selectedOption];
+        try {
+            const res = await axios.get(`http://localhost:3000/certificados/busca`, {
+            params: { filtro, valor: this.searchQuery }
+            });
+            this.items = res.data.certificados;
+            this.alunoInfo = res.data.usuario;
+            this.nenhumResultado = false;
+        } catch (error) {
+            this.items = [];
+            this.alunoInfo = null;
+            this.nenhumResultado = true;
         }
     }
+
+  }
 };
 </script>
 
 <template>
-    <BannerCoordenador />
-    <div class="search-container">
-        <div class="dropdown-wrapper">
-            <button class="dropdown-button" @click="toggleDropdown">
-                {{ selectedOption }}
-                <span class="dropdown-arrow">▼</span>
-            </button>
-            <div v-if="isDropdownOpen" class="dropdown-menu">
-                <div
-                    v-for="(option, index) in options"
-                    :key="index"
-                    class="dropdown-item"
-                    @click="selectOption(option)"
-                >
-                    {{ option }}
-                </div>
-            </div>
+  <BannerCoordenador />
+
+  <div class="search-container">
+    <div class="dropdown-wrapper">
+      <button class="dropdown-button" @click="toggleDropdown">
+        {{ selectedOption }}
+        <span class="dropdown-arrow">▼</span>
+      </button>
+      <div v-if="isDropdownOpen" class="dropdown-menu">
+        <div
+          v-for="(option, index) in options"
+          :key="index"
+          class="dropdown-item"
+          @click="selectOption(option)"
+        >
+          {{ option }}
         </div>
-        <div class="search-bar">
-            <input 
-                type="text" 
-                v-model="searchQuery"
-                placeholder="Digite sua busca..."
-                class="search-input"
-            >
-            <button class="search-button">Buscar</button>
-        </div>
+      </div>
     </div>
-    <!-- <div class="info">
-        <p>RA: 210331</p>
-        <p>Nome do Aluno: Pedro Henrique Lisboa</p>
-        <p>Curso: Engenharia da Computação</p>
+
+    <div class="search-bar">
+      <input 
+        type="text" 
+        v-model="searchQuery"
+        placeholder="Digite sua busca..."
+        class="search-input"
+      >
+      <button class="search-button" @click="buscar">Buscar</button>
     </div>
-    <div class="table-container">
-        <v-data-table 
-            :headers="[
-                { title: 'Título', key: 'title' },
-                { title: 'Categoria', key: 'category' },
-                { title: 'Tipo de Atividade', key: 'activityType' },
-                { title: 'Data de Envio', key: 'submissionDate' },
-                { title: 'Horas Atribuídas', key: 'hours' },
-                { title: 'Visualizar PDF', key: 'pdfLink' },
-            ]"
-            :items="items" 
-            hide-default-footer
-        ></v-data-table>
-    </div>
-    <img src="../assets/grafico_barra.jpeg" class="graph" /> -->
+  </div>
+
+  <div class="mensagem-container" v-if="nenhumResultado">
+    <p class="mensagem-vazia">Nenhum resultado encontrado para "{{ searchQuery }}".</p>
+  </div>
+
+  <div v-if="alunoInfo" class="info">
+    <p>RA: {{ alunoInfo.ra }}</p>
+    <p>Nome do Aluno: {{ alunoInfo.name }}</p>
+    <p>Curso: {{ alunoInfo.curso }}</p>
+  </div>
+
+  <div class="table-container" v-if="items.length">
+    <v-data-table 
+      :headers="[
+        { title: 'Título', key: 'titulo' },
+        { title: 'Categoria', key: 'categoria' },
+        { title: 'Tipo de Atividade', key: 'tipoAtividade' },
+        { title: 'Data de Envio', key: 'dataEnvio' },
+        { title: 'Horas Atribuídas', key: 'horasAtribuidas' },
+        { title: 'Visualizar PDF', key: 'urlPDF' },
+      ]"
+      :items="items" 
+      hide-default-footer
+    ></v-data-table>
+  </div>
 </template>
 
 <style scoped>
@@ -225,6 +226,18 @@ export default {
 :deep(.v-data-table-header) {
     font-size: 19px;  /* Larger headers */
     font-weight: bold;  /* Bold headers */
+}
+
+.mensagem-container {
+  width: 100%;
+  text-align: center;
+  margin-top: 15px;
+}
+
+.mensagem-vazia {
+  color: #a00;
+  font-size: 16px;
+  font-family: 'League Spartan', sans-serif;
 }
 
 @media only screen and (max-width: 1300px) {
