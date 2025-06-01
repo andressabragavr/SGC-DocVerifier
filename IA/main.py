@@ -1,5 +1,5 @@
 import os
-
+from dotenv import load_dotenv
 from application.services.detector_tipo_service import DetectorTipoService
 from adapters.input.conversor_pdf_imagem import ConversorPDFImagem
 from application.services.ocr_service import OCRService
@@ -10,6 +10,7 @@ from adapters.llm.gemini_adapter import GeminiAdapter
 from application.services.llm_service import LLMService
 
 if __name__ == "__main__":
+    load_dotenv()
     
     pasta_imagens = "data/imagens_convertidas/"
     caminho_arquivo = "data/alunos/210421 - Felipe Pires.pdf"
@@ -32,21 +33,21 @@ if __name__ == "__main__":
         os.system(f"copy {caminho_arquivo} {destino}")
         
     # OCR
-    ocr = OCRService(teseract_cmd=tesseract_path)
+    ocr = OCRService(teseract_cmd = tesseract_path)
     textos_extraidos = ocr.extrair_texto(pasta_imagens)
     num_cert = len(textos_extraidos)
     
     # RAG
     texto_completo = "\n".join(textos_extraidos.values())
-    contexto = contexto_rag(texto_completo, query="Extração de informações do certificado")
+    contexto = contexto_rag(texto_completo, query = "Extração de informações do certificado")
         
     # Prompt
     prompt_formatado = carregar_prompt_formatado(
         "resources/prompts/base_prompt.txt",
-        texto_dict=textos_extraidos,
-        num_cert=num_cert,
-        nome_aluno=nome_aluno,
-        atividades=str(atividades),
+        texto_dict = textos_extraidos,
+        num_cert = num_cert,
+        nome_aluno = nome_aluno,
+        atividades = str(atividades),
         contexto = contexto
     )
     
@@ -55,3 +56,7 @@ if __name__ == "__main__":
     adapter = GeminiAdapter(api_key=gemini_api_key)
     
     servico_llm = LLMService(adapter)
+    resposta = servico_llm.obter_resposta(prompt_formatado, contexto=contexto)
+    
+    print("\n Resposta estruturada do LLM:")
+    print(resposta)
