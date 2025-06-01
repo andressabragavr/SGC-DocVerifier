@@ -7,6 +7,7 @@ from application.services.rag_service import contexto_rag
 from resources.prompts.carregador_prompt import carregar_prompt_formatado
 from resources.atividades import atividades
 from adapters.llm.gemini_adapter import GeminiAdapter
+from application.services.llm_service import LLMService
 
 if __name__ == "__main__":
     
@@ -52,3 +53,5 @@ if __name__ == "__main__":
     # Gemini
     gemini_api_key = os.getenv("GEMINI_API_KEY")
     adapter = GeminiAdapter(api_key=gemini_api_key)
+    
+    servico_llm = LLMService(adapter)
