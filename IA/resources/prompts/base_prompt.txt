@@ -1,3 +1,4 @@
+{contexto}
 Sua função é extrair informações de certificados. RESPONDA APENAS COM O JSON SOLICITADO, SEM COMENTÁRIOS OU CÓDIGO.
 
 Texto extraído disponível no dicionário: {texto_dict}, contendo {num_cert} certificado(s).
