@@ -1,5 +1,5 @@
 {contexto}
-Sua função é extrair informações de certificados. RESPONDA APENAS COM O JSON SOLICITADO, SEM COMENTÁRIOS OU CÓDIGO.
+Sua função é extrair informações de todos certificados passados. RESPONDA APENAS COM O JSON SOLICITADO, SEM COMENTÁRIOS OU CÓDIGO.
 
 Texto extraído disponível no dicionário: {texto_dict}, contendo {num_cert} certificado(s).
 
@@ -44,7 +44,7 @@ Objetivo: analisar esse dicionário e extrair as seguintes informações:
    - Avalie se o certificado possui relação com o curso do aluno.
    - Retorne "Sim" ou "Não", com base no conteúdo analisado.
 
-A resposta deve conter **apenas** o JSON no seguinte formato:
+A resposta deve conter **apenas** o JSON no seguinte formato para todos os certificados passados:
 
 [
   {{
