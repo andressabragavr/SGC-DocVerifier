@@ -1,0 +1,58 @@
+Sua função é extrair informações de certificados. RESPONDA APENAS COM O JSON SOLICITADO, SEM COMENTÁRIOS OU CÓDIGO.
+
+Texto extraído disponível no dicionário: {texto_dict}, contendo {num_cert} certificado(s).
+
+Objetivo: analisar esse dicionário e extrair as seguintes informações:
+
+1. **Semestre realizado**:
+   - Extraia o semestre em que o certificado foi concluído.
+   - Retorne no formato: **"YYYY-SX"**, sendo X o semestre (1 ou 2).
+   - Retorne NULL caso não localize essa informação.
+
+2. **Instituição**:
+   - Extraia o nome da instituição que emitiu o certificado.
+   - Retorne NULL caso não localize essa informação.
+
+3. **Tipo de certificado**:  
+   - Compare o conteúdo do certificado com as categorias existentes em {atividades}.  
+   - Escolha a categoria mais relevante com base no contexto geral do certificado.
+   - Leve em conta sinônimos e expressões equivalentes às categorias listadas.
+   - Considere o documento como um todo — não apenas palavras soltas.
+   - Use apenas os nomes das atividades presentes em {atividades}.
+   - Retorne NULL caso não localize correspondência adequada.
+
+4. **Quantidade de horas**:  
+   - Extraia o número explicitamente associado a "hora" ou "horas".  
+   - Se não houver número explícito, utilize o valor padrão definido em {atividades}.
+   - Retorne NULL caso não haja dados suficientes.
+
+5. **Data de conclusão**:  
+   - Extraia a data mencionada no certificado, aceitando os formatos:
+     - "DD de mês de AAAA" (exemplo: "20 de outubro de 2023")
+     - "DD/MM/AAAA" (exemplo: "20/10/2023")
+     - "AAAA-MM-DD" (exemplo: "2023-10-20")
+   - Retorne sempre no formato: **"YYYY-MM-DD"**.
+   - Retorne NULL caso não localize essa informação.
+
+6. **Nome do aluno**:  
+   - Localize o nome mais próximo de "{nome_aluno}", mesmo com pequenas variações ou ausência de acentos.
+   - Se houver múltiplos nomes, selecione apenas aquele que corresponde a "{nome_aluno}".
+   - Retorne NULL apenas se não encontrar nenhuma correspondência plausível.
+
+7. **Relação com o curso**:
+   - Avalie se o certificado possui relação com o curso do aluno.
+   - Retorne "Sim" ou "Não", com base no conteúdo analisado.
+
+A resposta deve conter **apenas** o JSON no seguinte formato:
+
+[
+  {
+    "semestre": "[Ano-Semestre ou NULL]",
+    "instituicao": "[Nome da instituição ou NULL]",
+    "tipo_certificado": "[Nome da atividade correta ou NULL]",
+    "quantidade_horas": "[Número de horas ou NULL]",
+    "data_conclusao": "[YYYY-MM-DD ou NULL]",
+    "nome": "[Nome do aluno ou NULL]",
+    "relacao_com_curso": "[Sim ou Não]"
+  }
+]
