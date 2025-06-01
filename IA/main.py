@@ -29,4 +29,3 @@ if __name__ == "__main__":
     ocr = OCRService(teseract_cmd=tesseract_path)
     textos_extraidos = ocr.extrair_texto(pasta_imagens)
     num_cert = len(textos_extraidos)
-    print(textos_extraidos)
