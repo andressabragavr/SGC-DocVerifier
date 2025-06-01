@@ -4,11 +4,14 @@ from application.services.detector_tipo_service import DetectorTipoService
 from adapters.input.conversor_pdf_imagem import ConversorPDFImagem
 from application.services.ocr_service import OCRService
 from application.services.rag_service import contexto_rag
+from resources.prompts.carregador_prompt import carregar_prompt_formatado
+from resources.atividades import atividades
 
 if __name__ == "__main__":
     
     pasta_imagens = "data/imagens_convertidas/"
     caminho_arquivo = "data/alunos/210421 - Felipe Pires.pdf"
+    nome_aluno = "Felipe Pires dos Santos"
     
     poppler_path = r"C:\Arquivos de Programas\poppler\poppler-24.08.0\Library\bin"
     tesseract_path = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
@@ -34,3 +37,13 @@ if __name__ == "__main__":
     # RAG
     texto_completo = "\n".join(textos_extraidos.values())
     contexto = contexto_rag(texto_completo, query="Extração de informações do certificado")
+        
+    # Prompt
+    prompt_formatado = carregar_prompt_formatado(
+        "resources/prompts/base_prompt.txt",
+        texto_dict=textos_extraidos,
+        num_cert=num_cert,
+        nome_aluno=nome_aluno,
+        atividades=str(atividades),
+        contexto = contexto
+    )
