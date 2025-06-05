@@ -31,11 +31,11 @@ export default defineComponent({
           const formData = new FormData();
           formData.append('arquivo', this.file);
           formData.append('ra', usuario.ra); // pega do localStorage
-          formData.append('titulo', 'Curso de Python');
+          formData.append('titulo', 'Curso de HTML, CSS e Bootstrap5');
           formData.append('categoria', 'Livre');
-          formData.append('tipoAtividade', 'Curso');
+          formData.append('tipoAtividade', 'Curso de Formação Complementar');
           formData.append('dataEnvio', new Date().toISOString());
-          formData.append('horasAtribuidas', '20');
+          formData.append('horasAtribuidas', '17');
           formData.append('status', 'Pendente');
 
           fetch('http://localhost:3000/certificados/upload', {

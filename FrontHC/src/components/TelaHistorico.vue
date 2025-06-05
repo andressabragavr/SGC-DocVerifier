@@ -8,7 +8,7 @@ export default defineComponent({
   data() {
     return {
         headers: [
-        { title: 'Título', key: 'title' },
+        { title: 'Título', key: 'title'},
         { title: 'Categoria', key: 'category' },
         { title: 'Tipo de Atividade', key: 'activityType' },
         { title: 'Data de Envio', key: 'submissionDate' },
@@ -102,4 +102,7 @@ export default defineComponent({
   background-color: #FF4500;
 }
 
+:deep(th) {
+  font-weight: bold !important;
+}
 </style>
