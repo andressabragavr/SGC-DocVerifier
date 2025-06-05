@@ -12,6 +12,7 @@ export default defineComponent({
     const email = ref('');
     const password = ref('');
     const ra = ref('');
+    const curso = ref('');
     const tipo = ref('aluno'); // Novo campo com valor padrão
     const errorMessage = ref('');
     const isLoading = ref(false);
@@ -26,6 +27,7 @@ export default defineComponent({
           email: email.value,
           password: password.value,
           ra: ra.value,
+          curso: curso.value,
           tipo: tipo.value 
         });
 
@@ -47,6 +49,7 @@ export default defineComponent({
       email,
       password,
       ra,
+      curso,
       tipo,
       errorMessage,
       isLoading,
@@ -66,8 +69,20 @@ export default defineComponent({
       <input type="text" v-model="email" placeholder="E-mail" class="input-field" :disabled="isLoading" />
       <input type="password" v-model="password" placeholder="Senha" class="input-field" :disabled="isLoading" />
       <input type="text" v-model="ra" placeholder="RA" class="input-field" :disabled="isLoading" />
+      
+      <select v-model="curso" class="input-field" :disabled="isLoading">
+        <option disabled value="">Selecione seu curso</option>
+        <option value="Engenharia Agronômica">Engenharia Agronômica</option>
+        <option value="Engenharia Civil">Engenharia Civil</option>
+        <option value="Engenharia da Computação">Engenharia da Computação</option>
+        <option value="Engenharia Elétrica">Engenharia Elétrica</option>
+        <option value="Engenharia Mecânica">Engenharia Mecânica</option>
+        <option value="Engenharia Mecatrônica">Engenharia Mecatrônica</option>
+        <option value="Engenharia de Produção">Engenharia de Produção</option>
+        <option value="Engenharia Química">Engenharia Química</option>
+      </select>
 
-      <!-- Campo tipo -->
+
       <select v-model="tipo" class="input-field" :disabled="isLoading">
         <option value="aluno">Aluno</option>
         <option value="coordenador">Coordenador</option>
