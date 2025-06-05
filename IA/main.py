@@ -15,8 +15,15 @@ if __name__ == "__main__":
     load_dotenv()
     
     pasta_imagens = "data/imagens_convertidas/"
-    caminho_arquivo = "data/alunos/210421 - Felipe Pires.pdf"
-    nome_aluno = "Felipe Pires dos Santos"
+    
+    # Pedro
+    caminho_arquivo = "data/alunos/certificados_Pedro_Lisboa.pdf"
+    nome_aluno = "Pedro Henrique Lisboa"
+    
+    # Andressa
+    # caminho_arquivo = "data/alunos/210058 - Andressa Braga.pdf"
+    # caminho_arquivo = "data/alunos/CursoHTML, CSS e Boostrap5 -ANDRESSA.pdf"
+    # nome_aluno = "Andressa Braga Vieira Rodrigues"
     
     poppler_path = r"C:\Arquivos de Programas\poppler\poppler-24.08.0\Library\bin"
     tesseract_path = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
@@ -65,3 +72,5 @@ if __name__ == "__main__":
     resposta = servico_llm.obter_resposta(prompt_formatado, contexto=contexto)
     
     arquivo = salvar_resultado_em_json(resposta, "resultado_certificado")
+    
+    print("Finalizado")
