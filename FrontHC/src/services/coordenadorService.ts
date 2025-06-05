@@ -1,78 +1,16 @@
-import api from "./api";
+import axios from 'axios';
 
-interface Aluno {
-    ra: string;
-    nome: string;
-    curso: string;
-    horasLancadas: number;
-    horasFaltantes: number;
-    horasExigidas: number;
-    certificados: Array<{
-        id: number;
-        titulo: string;
-        categoria: string;
-        tipoAtividade: string;
-        dataEnvio: string;
-        horas: number;
-        status: string;
-    }>;
-}
+const API_URL = 'http://localhost:3000'; 
 
-// interface AtividadePendente {
-//     id: number;
-//     nomeAluno: string; //alunoNome: string;
-//     ra: string; //alunoRA: string;
-//     tituloCertificado: string;
-//     dataEnvio: string;
-//     arquivoUrl: string; //
-// }
-
-// interface ResultadoValidacao {
-//     certificadoId: number;
-//     aprovado: boolean;
-//     horasValidadas?: number;
-//     observacao?: string;
-// }
-
-// interface DadosRelatorio {
-//     ra: string;
-//     nomeAluno: string;
-//     curso: string;
-//     certificados: {
-//         id: number;
-//         titulo: string;
-//         horas: number;
-//         arquivoUrl: string; //
-//     }[];
-// }
-
-const coordenadorService = {
-    // getAtividadesPendentes: async (): Promise<AtividadePendente[]> => {
-    //     const response = await api.get('/coodenador/atividades-pendentes');
-    //     return response.data;
-    // },
-
-    // validarAtividade: async (dados: ResultadoValidacao) => {
-    //     return await api.post('/coordenador/validar-atividade', dados);
-    // },
-
-    buscarAlunoPorRA: async (ra: string): Promise<Aluno> => {
-        const response = await api.get(`/coordenador/alunos/${ra}`); 
-        return response.data;
-    },
-    
-    aprovarCertificado: async (certificadoId: number) => {
-        return await api.put(`/coordenador/certificados/${certificadoId}/aprovar`);
-    },
-
-    rejeitarCertificado: async (certificadoId: number, motivo: string) => {
-        return await api.put(`/coordenador/certificados/${certificadoId}/rejeitar`, { motivo });
-    }
-
-    // gerarRelatorio: async (ra: string): Promise<DadosRelatorio> => {
-    //     const response = await api.get(`/coordenador/relatorio/${ra}`);
-    //     return response.data;
-    // }
+export default {
+  async getAlunosComCertificados() {
+    const res = await axios.get(`${API_URL}/certificados/validacao`);
+    return res.data;
+  },
+  async aprovarCertificado(id: string) {
+    return axios.put(`${API_URL}/certificados/${id}/aprovar`);
+  },
+  async rejeitarCertificado(id: string) {
+    return axios.delete(`${API_URL}/certificados/${id}`);
+  }
 };
-
-export default coordenadorService;
