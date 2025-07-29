@@ -1,7 +1,7 @@
 import json
 import os
 
-def salvar_resultado_em_json(conteudo_json_str: str, nome_arquivo: str, pasta_saida: str = "data/output"):
+def salvar_resultado_em_json(conteudo_json_str: str, nome_arquivo: str, pasta_saida: str = None):
     """
     Trata a string JSON retornada pela LLM e salva em um arquivo .json.
     """
@@ -15,6 +15,10 @@ def salvar_resultado_em_json(conteudo_json_str: str, nome_arquivo: str, pasta_sa
     except json.JSONDecodeError as e:
         print(f"Erro ao decodificar JSON: {e}")
         return None
+
+    if not pasta_saida:
+        root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+        pasta_saida = os.path.join(root_dir, "data", "output")
 
     os.makedirs(pasta_saida, exist_ok=True)
     caminho_saida = os.path.join(pasta_saida, f"{nome_arquivo}.json")

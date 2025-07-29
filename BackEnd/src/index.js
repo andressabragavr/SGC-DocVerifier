@@ -7,10 +7,14 @@ import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
+import { exec } from 'child_process';
+import util from 'util';
 
 const app = express();
 const PORT = 3000;
 const prisma = new PrismaClient();
+
+const execPromise = util.promisify(exec);
 
 // Diretório de upload
 const __filename = fileURLToPath(import.meta.url);
@@ -80,38 +84,62 @@ app.get('/usuarios/:ra/certificados', async (req, res) => {
   }
 });
 
-// Cadastro de certificado (upload)
+// Cadastro de certificado (upload + IA + Prisma)
 app.post('/certificados/upload', upload.single('arquivo'), async (req, res) => {
-  const {
-    ra, titulo, categoria, tipoAtividade,
-    dataEnvio, horasAtribuidas, status
-  } = req.body;
+  const { ra } = req.body;
   const file = req.file;
+
   if (!file) return res.status(400).json({ error: 'Arquivo não enviado' });
 
   try {
     const user = await prisma.user.findUnique({ where: { ra } });
     if (!user) return res.status(404).json({ error: 'Usuário não encontrado' });
 
+    // 1. Executa a IA para extrair os dados do certificado
+    const scriptPath = path.join(__dirname, '..', '..', 'IA', 'main.py');
+    const caminhoPDF = path.join(uploadPath, file.filename);
+    const nomeAluno = user.name || 'Aluno Desconhecido';
+
+    const { stdout, stderr } = await execPromise(
+      `python "${scriptPath}" "${caminhoPDF}" "${nomeAluno}"`
+    );
+    if (stderr) console.error('Erro da IA:', stderr);
+
+    let resultadoIA;
+    try {
+      resultadoIA = JSON.parse(stdout);
+      // console.log('Resultado da IA:', resultadoIA);
+    } catch (e) {
+      return res.status(500).json({ error: 'Erro ao interpretar resultado da IA' });
+    }
+
+    // console.log("Tipo de resultadoIA:", Array.isArray(resultadoIA) ? "Array" : typeof resultadoIA);
+    console.log("Dados IA:", resultadoIA);
+    // console.log("dados.tipo_certificado:", resultadoIA[0]?.tipo_certificado);
+
+    // 2. Salva os dados extraídos no banco (usando Prisma)
+    const dados = resultadoIA[0]; // IA retorna um array com 1 objeto
     const certificado = await prisma.certificado.create({
       data: {
-        titulo,
-        categoria,
-        tipoAtividade,
-        dataEnvio: new Date(dataEnvio),
-        horasAtribuidas: parseInt(horasAtribuidas),
+        titulo: dados.tipo_certificado || 'Certificado',
+        categoria: 'Automático', // Pode ajustar
+        tipoAtividade: dados.tipo_certificado || 'Desconhecido',
+        dataEnvio: new Date(), // Data atual do upload
+        horasAtribuidas: parseInt(dados.quantidade_horas || '0'),
         urlPDF: `http://localhost:3000/uploads/${file.filename}`,
-        status,
+        status: 'Pendente',
         userId: user.id
       }
     });
 
+    // 3. Retorna o certificado salvo para o front
     res.status(201).json(certificado);
   } catch (error) {
     console.error('Erro ao salvar certificado:', error);
     res.status(500).json({ error: 'Erro interno ao salvar certificado' });
   }
 });
+
 
 // Cadastro de certificado (sem upload)
 app.post('/certificados', async (req, res) => {
