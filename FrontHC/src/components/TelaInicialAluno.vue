@@ -4,19 +4,19 @@ import alunoService from '../services/alunoService';
 import { defineComponent } from 'vue';
 
 export default defineComponent({
-    components: { Banner },
-    data() {
-        return {
-            dadosAluno: {
-                nomeAluno: '',
-                numCertificados: 0,
-                horasLancadas: 0,
-                horasFaltantes: 0,
-                horasExigidas: 200
-            }
-        }
-    },
-    async mounted() {
+  components: { Banner },
+  data() {
+    return {
+      dadosAluno: {
+        nomeAluno: '',
+        numCertificados: 0,
+        horasLancadas: 0,
+        horasFaltantes: 0,
+        horasExigidas: 200
+      }
+    }
+  },
+  async mounted() {
     try {
       const usuario = localStorage.getItem('usuario');
       if (usuario) {
@@ -27,11 +27,16 @@ export default defineComponent({
         const response = await alunoService.getCertificadosPorRa(userObj.ra);
         const certificados = response.data;
 
-        // Número de certificados
+        // Número total de certificados (independente do status)
         this.dadosAluno.numCertificados = certificados.length;
 
-        // Soma das horas atribuídas
-        const totalHoras = certificados.reduce(
+        // Filtra apenas os certificados com status "aprovado"
+        const certificadosAprovados = certificados.filter(
+          (cert: any) => cert.status === 'Aprovado'
+        );
+
+        // Soma das horas apenas dos certificados aprovados
+        const totalHoras = certificadosAprovados.reduce(
           (acc: number, cert: any) => acc + cert.horasAtribuidas,
           0
         );

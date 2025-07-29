@@ -121,8 +121,7 @@ app.post('/certificados/upload', upload.single('arquivo'), async (req, res) => {
     const dados = resultadoIA[0]; // IA retorna um array com 1 objeto
     const certificado = await prisma.certificado.create({
       data: {
-        titulo: dados.tipo_certificado || 'Certificado',
-        categoria: 'Automático', // Pode ajustar
+        titulo: dados.titulo || 'Certificado',
         tipoAtividade: dados.tipo_certificado || 'Desconhecido',
         dataEnvio: new Date(), // Data atual do upload
         horasAtribuidas: parseInt(dados.quantidade_horas || '0'),

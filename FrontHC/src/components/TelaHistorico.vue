@@ -9,7 +9,6 @@ export default defineComponent({
     return {
         headers: [
         { title: 'Título', key: 'title'},
-        { title: 'Categoria', key: 'category' },
         { title: 'Tipo de Atividade', key: 'activityType' },
         { title: 'Data de Envio', key: 'submissionDate' },
         { title: 'Horas Atribuídas', key: 'hours' },
@@ -18,7 +17,6 @@ export default defineComponent({
         ],
         items: [] as {
             title: string;
-            category: string;
             activityType: string;
             submissionDate: string;
             hours: number;
@@ -33,7 +31,6 @@ export default defineComponent({
 
       this.items = response.data.map((certificado: any) => ({
         title: certificado.titulo,
-        category: certificado.categoria,
         activityType: certificado.tipoAtividade,
         submissionDate: new Date(certificado.dataEnvio).toLocaleDateString('pt-BR'),
         hours: certificado.horasAtribuidas,
