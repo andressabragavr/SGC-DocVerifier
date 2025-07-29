@@ -40,7 +40,7 @@ if __name__ == "__main__":
         print(json.dumps({"erro": f"Arquivo não encontrado: {caminho_arquivo}"}))
         sys.exit(1)
     
-    poppler_path = r"C:\Arquivos de Programas\poppler\poppler-24.08.0\Library\bin"
+    poppler_path = r"C:\Program Files\poppler\poppler-24.08.0\Library\bin"
     tesseract_path = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
     
     # Detector MIME
