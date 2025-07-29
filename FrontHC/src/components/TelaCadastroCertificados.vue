@@ -11,6 +11,7 @@ export default defineComponent({
       return {
         file: null as File | null,
         fileName: '',
+        resultadoIA: null as any
       };
     },
     methods: {
@@ -31,12 +32,12 @@ export default defineComponent({
           const formData = new FormData();
           formData.append('arquivo', this.file);
           formData.append('ra', usuario.ra); // pega do localStorage
-          formData.append('titulo', 'Curso de Python');
-          formData.append('categoria', 'Livre');
-          formData.append('tipoAtividade', 'Curso');
-          formData.append('dataEnvio', new Date().toISOString());
-          formData.append('horasAtribuidas', '20');
-          formData.append('status', 'Pendente');
+          // formData.append('titulo', 'Curso de Python');
+          // formData.append('categoria', 'Livre');
+          // formData.append('tipoAtividade', 'Curso');
+          // formData.append('dataEnvio', new Date().toISOString());
+          // formData.append('horasAtribuidas', '20');
+          // formData.append('status', 'Pendente');
 
           fetch('http://localhost:3000/certificados/upload', {
             method: 'POST',
@@ -44,8 +45,9 @@ export default defineComponent({
           })
           .then(res => res.json())
           .then(data => {
+            this.resultadoIA = data; // salva o retorno da IA
+            console.log('Resultado da IA:', this.resultadoIA); // mostra no console
             alert('Certificado enviado com sucesso!');
-            console.log(data);
           })
           .catch(err => {
             console.error('Erro ao enviar certificado:', err);
