@@ -3,18 +3,10 @@
     "semestre": "2023-2",
     "instituicao": "XXI Simpósio Brasileiro sobre Fatores Humanos em Sistemas Computacionais (IHC 2023)",
     "tipo_certificado": "Artigo Científico",
+    "titulo": "Making roads safer: a vehicle blind spot alert system co-designed with end-users",
     "quantidade_horas": "40",
     "data_conclusao": "2023-10-20",
-    "nome": "Pedro Henrique Lisboa",
-    "relacao_com_curso": "Sim"
-  },
-  {
-    "semestre": "2023-2",
-    "instituicao": "Technische Hochschule Ingolstadt",
-    "tipo_certificado": "Intercâmbio",
-    "quantidade_horas": "40",
-    "data_conclusao": "2023-10-20",
-    "nome": "Pedro Henrique Lisboa",
+    "nome": "Pedro Lisboa",
     "relacao_com_curso": "Sim"
   }
 ]
