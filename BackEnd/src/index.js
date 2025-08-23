@@ -143,7 +143,7 @@ app.post('/certificados/upload', upload.single('arquivo'), async (req, res) => {
 // Cadastro de certificado (sem upload)
 app.post('/certificados', async (req, res) => {
   const {
-    ra, titulo, categoria, tipoAtividade,
+    ra, titulo, tipoAtividade,
     dataEnvio, horasAtribuidas, urlPDF, status
   } = req.body;
   try {
@@ -153,7 +153,6 @@ app.post('/certificados', async (req, res) => {
     const certificado = await prisma.certificado.create({
       data: {
         titulo,
-        categoria,
         tipoAtividade,
         dataEnvio: new Date(dataEnvio),
         horasAtribuidas,

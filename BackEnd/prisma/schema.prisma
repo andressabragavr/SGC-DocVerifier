@@ -29,7 +29,6 @@ model User {
 model Certificado {
   id              String   @id @default(auto()) @map("_id") @db.ObjectId
   titulo          String
-  categoria       String
   tipoAtividade   String
   dataEnvio       DateTime
   horasAtribuidas Int
