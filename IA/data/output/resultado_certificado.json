@@ -1,12 +1,12 @@
 [
   {
-    "semestre": "2023-S1",
-    "instituicao": "FACENS",
-    "tipo_certificado": "Evento Acadêmico",
-    "titulo": "2023 SIMULATION EXPLORATION EXPERIENCE (SEE)",
-    "quantidade_horas": "4",
-    "data_conclusao": "2023-01-01",
-    "nome": null,
+    "semestre": "2023-2",
+    "instituicao": "XXI Simpósio Brasileiro sobre Fatores Humanos em Sistemas Computacionais (IHC 2023)",
+    "tipo_certificado": "Artigo Científico",
+    "titulo": "Making roads safer: a vehicle blind spot alert system co-designed with end-users",
+    "quantidade_horas": "40",
+    "data_conclusao": "2023-10-20",
+    "nome": "Pedro Lisboa",
     "relacao_com_curso": "Sim"
   }
 ]
