@@ -113,21 +113,43 @@ app.post('/certificados/upload', upload.single('arquivo'), async (req, res) => {
       return res.status(500).json({ error: 'Erro ao interpretar resultado da IA' });
     }
 
+    if (!resultadoIA || (Array.isArray(resultadoIA) && resultadoIA.length === 0)) {
+      return res.status(400).json({ error: 'IA não retornou dados de extração' });
+    }
+
     // console.log("Tipo de resultadoIA:", Array.isArray(resultadoIA) ? "Array" : typeof resultadoIA);
     console.log("Dados IA:", resultadoIA);
     // console.log("dados.tipo_certificado:", resultadoIA[0]?.tipo_certificado);
 
     // 2. Salva os dados extraídos no banco (usando Prisma)
-    const dados = resultadoIA[0]; // IA retorna um array com 1 objeto
+    const dados = Array.isArray(resultadoIA) ? resultadoIA[0] : resultadoIA;
+
+    // Normalizações mínimas
+    const horas = parseInt(dados.quantidade_horas || '0', 10) || 0;
+    const relCurso = /^(sim|true|1|yes)$/i.test(String(dados.relacao_com_curso || '').trim());
+    const dataISO = (() => {
+      const s = String(dados.data_conclusao || '').trim();
+      if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;                 // "2023-10-20"
+      const m = s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);            // "20/10/2023"
+      return m ? `${m[3]}-${m[2]}-${m[1]}` : null;
+    })();
+    const dataConclusao = dataISO ? new Date(`${dataISO}T12:00:00.000Z`) : null; // evita problema de fuso
+
     const certificado = await prisma.certificado.create({
       data: {
         titulo: dados.titulo || 'Certificado',
         tipoAtividade: dados.tipo_certificado || 'Desconhecido',
         dataEnvio: new Date(), // Data atual do upload
-        horasAtribuidas: parseInt(dados.quantidade_horas || '0'),
+        horasAtribuidas: horas,
         urlPDF: `http://localhost:3000/uploads/${file.filename}`,
         status: 'Pendente',
-        userId: user.id
+        userId: user.id,
+        instituicao: dados.instituicao || null,
+        semestre: dados.semestre || null,
+        relacaoComCurso: relCurso,
+        nomeNoCertificado: dados.nome || null,
+        extraidoRaw: dados,
+        dataConclusao: dataConclusao
       }
     });
 
