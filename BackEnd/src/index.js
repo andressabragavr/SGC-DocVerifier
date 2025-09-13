@@ -25,6 +25,14 @@ if (!fs.existsSync(uploadPath)) {
   fs.mkdirSync(uploadPath);
 }
 
+// Helpers de status (evita typos)
+export const STATUS = {
+  PENDENTE: 'PENDENTE',
+  ACEITO: 'ACEITO',
+  RECUSADO: 'RECUSADO',
+  AJUSTAR: 'AJUSTAR',
+};
+
 // Configuração do multer
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, uploadPath),
@@ -104,6 +112,16 @@ app.post('/certificados/upload', upload.single('arquivo'), async (req, res) => {
     const buffer = await fs.promises.readFile(caminhoPDF);
     const fileHashSHA256 = crypto.createHash('sha256').update(buffer).digest('hex');
 
+    const jaExiste = await prisma.certificado.findFirst({
+      where: { fileHashSHA256 }
+    });
+    if (jaExiste) {
+      return res.status(409).json({
+        error: 'Arquivo já enviado anteriormente (duplicata forte).',
+        certificadoId: jaExiste.id
+      });
+    }
+
     const { stdout, stderr } = await execPromise(
       `python "${scriptPath}" "${caminhoPDF}" "${nomeAluno}"`
     );
@@ -146,7 +164,7 @@ app.post('/certificados/upload', upload.single('arquivo'), async (req, res) => {
         dataEnvio: new Date(), // Data atual do upload
         horasAtribuidas: horas,
         urlPDF: `http://localhost:3000/uploads/${file.filename}`,
-        status: 'Pendente',
+        status: STATUS.PENDENTE,
         userId: user.id,
         instituicao: dados.instituicao || null,
         semestre: dados.semestre || null,
@@ -177,6 +195,8 @@ app.post('/certificados', async (req, res) => {
     const user = await prisma.user.findUnique({ where: { ra } });
     if (!user) return res.status(404).json({ error: 'Usuário não encontrado' });
 
+    const statusValido = Object.values(STATUS).includes(status) ? status : STATUS.PENDENTE;
+
     const certificado = await prisma.certificado.create({
       data: {
         titulo,
@@ -184,7 +204,7 @@ app.post('/certificados', async (req, res) => {
         dataEnvio: new Date(dataEnvio),
         horasAtribuidas,
         urlPDF,
-        status,
+        status: statusValido,
         userId: user.id
       }
     });
@@ -200,14 +220,11 @@ app.post('/certificados', async (req, res) => {
 app.put('/certificados/:id/aprovar', async (req, res) => {
   try {
     const { id } = req.params;
-    await prisma.certificado.update({
-      where: { id },
-      data: { status: 'Aprovado' }
-    });
-    res.status(200).json({ message: 'Certificado aprovado.' });
+    const cert = await setStatusCertificado(id, STATUS.ACEITO);
+    res.status(200).json({ message: 'Certificado aceito.', certificado: cert });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: 'Erro ao aprovar certificado.' });
+    res.status(500).json({ message: 'Erro ao aceitar certificado.' });
   }
 });
 
@@ -290,7 +307,189 @@ app.get('/certificados/busca', async (req, res) => {
   }
 });
 
+// Busca duplicatas fortes pelo hash do arquivo
+app.get('/certificados/duplicatas', async (req, res) => {
+  const { hash, excludeId } = req.query;
+  if (!hash) return res.status(400).json({ error: 'Parâmetro "hash" é obrigatório' });
 
+  try {
+    const where = {
+      fileHashSHA256: hash,
+      ...(excludeId ? { NOT: { id: String(excludeId) } } : {})
+    };
+
+    const duplicatas = await prisma.certificado.findMany({
+      where,
+      select: {
+        id: true,
+        userId: true,
+        instituicao: true,
+        nomeNoCertificado: true,
+        dataConclusao: true,
+        horasAtribuidas: true,
+        titulo: true,
+        tipoAtividade: true
+      }
+    });
+
+    res.status(200).json(duplicatas);
+  } catch (error) {
+    console.error('Erro ao buscar duplicatas:', error);
+    res.status(500).json({ error: 'Erro interno no servidor' });
+  }
+});
+
+// Util: converte 'YYYY-MM-DD' em Date e cria janela +/- 90 dias
+function makeDateWindowCenter(dateStr) {
+  if (!dateStr) return null;
+  const dt = new Date(`${dateStr}T12:00:00.000Z`);
+  if (isNaN(dt.getTime())) return null;
+  const start = new Date(dt); start.setUTCDate(start.getUTCDate() - 90);
+  const end   = new Date(dt); end.setUTCDate(end.getUTCDate() + 90);
+  return { start, end };
+}
+
+// Busca candidatos "similares" (para o agente calcular o score)
+app.get('/certificados/similares', async (req, res) => {
+  let { instituicao, nome, data, horas } = req.query;
+
+  // Pelo menos um filtro
+  if (!instituicao && !nome && !data && !horas) {
+    return res.status(400).json({ error: 'Forneça ao menos um parâmetro: instituicao|nome|data|horas' });
+  }
+
+  try {
+    const OR = [];
+    if (instituicao && String(instituicao).trim()) {
+      OR.push({ instituicao: { contains: String(instituicao).trim(), mode: 'insensitive' } });
+    }
+    if (nome && String(nome).trim()) {
+      OR.push({ nomeNoCertificado: { contains: String(nome).trim(), mode: 'insensitive' } });
+    }
+    const win = makeDateWindowCenter(data);
+    if (win) {
+      OR.push({ dataConclusao: { gte: win.start, lte: win.end } });
+    }
+    if (horas && !Number.isNaN(Number(horas))) {
+      OR.push({ horasAtribuidas: Number(horas) });
+    }
+
+    if (OR.length === 0) {
+      return res.status(400).json({ error: 'Parâmetros inválidos (nenhum filtro utilizável)' });
+    }
+
+    const candidatos = await prisma.certificado.findMany({
+      where: { OR },
+      select: {
+        id: true,
+        userId: true,
+        instituicao: true,
+        nomeNoCertificado: true,
+        dataConclusao: true,
+        horasAtribuidas: true,
+        titulo: true,
+        tipoAtividade: true,
+        fileHashSHA256: true
+      },
+      take: 120  // limite de segurança
+    });
+
+    res.status(200).json(candidatos);
+  } catch (error) {
+    console.error('Erro ao buscar similares:', error);
+    res.status(500).json({ error: 'Erro interno no servidor' });
+  }
+});
+
+// Certificado por ID (com dados do usuário)
+app.get('/certificados/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const cert = await prisma.certificado.findUnique({
+      where: { id },
+      include: { user: true }
+    });
+    if (!cert) return res.status(404).json({ error: 'Certificado não encontrado' });
+    res.status(200).json(cert);
+  } catch (error) {
+    console.error('Erro ao buscar certificado por ID:', error);
+    res.status(500).json({ error: 'Erro interno no servidor' });
+  }
+});
+
+// Atualiza status de certificado de forma explícita
+async function setStatusCertificado(id, status) {
+  return prisma.certificado.update({
+    where: { id },
+    data: { status }
+  });
+}
+
+app.put('/certificados/:id/aceitar', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const cert = await setStatusCertificado(id, STATUS.ACEITO);
+    res.status(200).json({ message: 'Certificado aceito.', certificado: cert });
+  } catch (error) {
+    console.error('Erro ao aceitar certificado:', error);
+    res.status(500).json({ message: 'Erro ao aceitar certificado.' });
+  }
+});
+
+app.put('/certificados/:id/recusar', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const cert = await setStatusCertificado(id, STATUS.RECUSADO);
+    res.status(200).json({ message: 'Certificado recusado.', certificado: cert });
+  } catch (error) {
+    console.error('Erro ao recusar certificado:', error);
+    res.status(500).json({ message: 'Erro ao recusar certificado.' });
+  }
+});
+
+app.put('/certificados/:id/ajustar', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const cert = await setStatusCertificado(id, STATUS.AJUSTAR);
+    res.status(200).json({ message: 'Certificado marcado para ajuste.', certificado: cert });
+  } catch (error) {
+    console.error('Erro ao ajustar certificado:', error);
+    res.status(500).json({ message: 'Erro ao ajustar certificado.' });
+  }
+});
+
+app.post('/auditoria', async (req, res) => {
+  try {
+    const { certificadoId, status, reason, evidence, stateSnap } = req.body;
+
+    // Validação mínima
+    if (!certificadoId || !status || !reason) {
+      return res.status(400).json({ error: 'certificadoId, status e reason são obrigatórios' });
+    }
+    if (!Object.values(STATUS).includes(status)) {
+      return res.status(400).json({ error: 'status inválido' });
+    }
+
+    // Garante que o certificado existe
+    const exists = await prisma.certificado.findUnique({ where: { id: certificadoId } });
+    if (!exists) return res.status(404).json({ error: 'Certificado não encontrado' });
+
+    const log = await prisma.auditLog.create({
+      data: {
+        certificadoId,
+        status,
+        reason,
+        evidence: evidence ?? [],
+        stateSnap: stateSnap ?? null
+      }
+    });
+
+    res.status(201).json(log);
+  } catch (error) {
+    console.error('Erro ao salvar auditoria:', error);
+    res.status(500).json({ error: 'Erro interno ao salvar auditoria' });
+  }
+});
 
 // Inicia servidor
 app.listen(PORT, () => {
