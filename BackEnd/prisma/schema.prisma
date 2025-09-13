@@ -45,4 +45,7 @@ model Certificado {
   nomeNoCertificado String?
   extraidoRaw       Json?
   dataConclusao     DateTime?
+
+  // --- NOVOS ---
+  fileHashSHA256     String?
 }

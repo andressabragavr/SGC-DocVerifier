@@ -9,6 +9,7 @@ import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 import { exec } from 'child_process';
 import util from 'util';
+import crypto from 'crypto';
 
 const app = express();
 const PORT = 3000;
@@ -100,6 +101,9 @@ app.post('/certificados/upload', upload.single('arquivo'), async (req, res) => {
     const caminhoPDF = path.join(uploadPath, file.filename);
     const nomeAluno = user.name || 'Aluno Desconhecido';
 
+    const buffer = await fs.promises.readFile(caminhoPDF);
+    const fileHashSHA256 = crypto.createHash('sha256').update(buffer).digest('hex');
+
     const { stdout, stderr } = await execPromise(
       `python "${scriptPath}" "${caminhoPDF}" "${nomeAluno}"`
     );
@@ -149,7 +153,8 @@ app.post('/certificados/upload', upload.single('arquivo'), async (req, res) => {
         relacaoComCurso: relCurso,
         nomeNoCertificado: dados.nome || null,
         extraidoRaw: dados,
-        dataConclusao: dataConclusao
+        dataConclusao: dataConclusao,
+        fileHashSHA256: fileHashSHA256
       }
     });
 
