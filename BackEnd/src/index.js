@@ -491,6 +491,27 @@ app.post('/auditoria', async (req, res) => {
   }
 });
 
+// GET /issuer?name=...
+app.get('/issuer', async (req,res)=>{
+  const name = String(req.query.name||'').trim();
+  if(!name) return res.status(400).json({error:'name obrigatório'});
+  const it = await prisma.issuer.findFirst({ where: { name: { equals: name, mode: 'insensitive' } }});
+  res.json(it);
+});
+
+// POST /issuer (upsert simples)
+app.post('/issuer', async (req,res)=>{
+  const { name, isTrusted, trustLevel, notes } = req.body;
+  if(!name) return res.status(400).json({error:'name obrigatório'});
+  const it = await prisma.issuer.upsert({
+    where: { name },
+    update: { isTrusted: !!isTrusted, trustLevel: Number(trustLevel||0), notes },
+    create: { name, isTrusted: !!isTrusted, trustLevel: Number(trustLevel||0), notes }
+  });
+  res.status(201).json(it);
+});
+
+
 // Inicia servidor
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
