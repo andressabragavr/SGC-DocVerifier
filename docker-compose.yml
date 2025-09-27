@@ -1,0 +1,68 @@
+services:
+  mongo:
+    image: mongo:6
+    container_name: mongo
+    restart: always
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+
+  backend:
+    build:
+      context: ./BackEnd
+      dockerfile: Dockerfile
+    container_name: backend
+    restart: always
+    ports:
+      - "3000:3000"
+    depends_on:
+      - mongo
+    environment:
+      - DATABASE_URL=mongodb://mongo:27017/Users
+    volumes:
+      - ./BackEnd:/app   # garante que index.js e o código fiquem acessíveis
+
+  frontend:
+    build:
+      context: ./FrontHC
+      dockerfile: Dockerfile
+    container_name: frontend
+    restart: always
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+    volumes:
+      - ./FrontHC:/app   # útil se precisar hot-reload (senão pode remover)
+
+  agent:
+    build:
+      context: ./Agent
+      dockerfile: Dockerfile
+    container_name: agent
+    restart: always
+    depends_on:
+      - backend
+      - mongo
+    env_file:
+      - ./Agent/.env
+    volumes:
+      - ./Agent:/app
+
+  ia:
+    build:
+      context: ./IA
+      dockerfile: Dockerfile
+    container_name: ia
+    restart: always
+    depends_on:
+      - backend
+      - mongo
+    env_file:
+      - ./IA/.env
+    volumes:
+      - ./IA:/app
+
+volumes:
+  mongo_data:
