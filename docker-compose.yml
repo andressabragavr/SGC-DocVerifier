@@ -23,19 +23,6 @@ services:
     volumes:
       - ./BackEnd:/app   # garante que index.js e o código fiquem acessíveis
 
-  frontend:
-    build:
-      context: ./FrontHC
-      dockerfile: Dockerfile
-    container_name: frontend
-    restart: always
-    ports:
-      - "8080:80"
-    depends_on:
-      - backend
-    volumes:
-      - ./FrontHC:/app   # útil se precisar hot-reload (senão pode remover)
-
   agent:
     build:
       context: ./Agent
@@ -64,5 +51,18 @@ services:
     volumes:
       - ./IA:/app
 
+  frontend:
+    build:
+      context: ./FrontHC
+      dockerfile: Dockerfile
+    container_name: frontend
+    restart: always
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+    volumes:
+      - ./FrontHC:/app   # útil se precisar hot-reload (senão pode remover)
+      
 volumes:
   mongo_data:
