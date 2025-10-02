@@ -33,6 +33,8 @@ services:
       - "8080:80"
     depends_on:
       - backend
+    environment:
+    - VUE_APP_API_URL=http://localhost:3000
     volumes:
       - ./FrontHC:/app   # útil se precisar hot-reload (senão pode remover)
 
