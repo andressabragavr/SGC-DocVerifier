@@ -8,7 +8,8 @@ from application.services.ocr_service import OCRService
 from application.services.rag_service import contexto_rag
 from resources.prompts.carregador_prompt import carregar_prompt_formatado
 from resources.atividades import atividades
-# from adapters.llm.gemini_adapter import GeminiAdapter
+from adapters.llm.gemini_adapter import GeminiAdapter
+from adapters.llm.llama_adapter import LlamaAdapter
 from application.services.llm_service import LLMService
 from adapters.llm.openai_adapter import OpenAIAdapter 
 from application.services.json_service import salvar_resultado_em_json
@@ -78,12 +79,15 @@ if __name__ == "__main__":
     )
     
     # Gemini
-    # gemini_api_key = os.getenv("GEMINI_API_KEY")
-    # adapter = GeminiAdapter(api_key=gemini_api_key)
+    gemini_api_key = os.getenv("GEMINI_API_KEY")
+    adapter = GeminiAdapter(api_key=gemini_api_key)
     
     # OpenAI
-    openai_api_key = os.getenv("OPENAI_API_KEY")
-    adapter = OpenAIAdapter(api_key=openai_api_key)
+    # openai_api_key = os.getenv("OPENAI_API_KEY")
+    # adapter = OpenAIAdapter(api_key=openai_api_key)
+    
+    # Llama
+    # adapter = LlamaAdapter()
     
     servico_llm = LLMService(adapter)
     resposta = servico_llm.obter_resposta(prompt_formatado, contexto=contexto)
