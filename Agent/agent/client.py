@@ -1,6 +1,6 @@
 import httpx, os
 
-API_BASE = os.getenv("BACKEND_BASE", "http://localhost:3000")
+API_BASE = os.getenv("BACKEND_BASE", "http://127.0.0.1:3000")
 TIMEOUT = float(os.getenv("TIMEOUT_S", "5"))
 
 def get_cert(cert_id: str):

@@ -5,14 +5,24 @@ from datetime import datetime, timezone
 from rapidfuzz import fuzz
 from agent import client
 import os
+import re
+from agent.ocr_utils import extract_text_from_pdf_url
 
+# -------- envs / thresholds --------
 H_MIN = int(float(os.getenv("H_MIN", "10")))
 SIM_ALUNO = int(float(os.getenv("SIM_ALUNO", "92")))
 SIM_DUP_FRACA = int(float(os.getenv("SIM_DUP_FRACA", "88")))
-REQUIRE_EMISSOR_VALIDO = False  # você não usa CNPJ/site por enquanto
-EMISSOR_CACHE_CONF_MIN = float(os.getenv("EMISSOR_CACHE_CONF_MIN", "0.7"))
 
-W_INSTIT, W_NOME, W_DATA, W_HORAS = 40, 30, 20, 10  # pesos
+# thresholds para comparação OCR
+THRESH_NOME_OCR = int(float(os.getenv("THRESH_NOME_OCR", "95")))
+THRESH_INSTIT_OCR = int(float(os.getenv("THRESH_INSTIT_OCR", "90")))
+THRESH_CURSO_OCR = int(float(os.getenv("THRESH_CURSO_OCR", "85")))
+THRESH_NOME_FUZZY = int(float(os.getenv("THRESH_NOME_FUZZY", "80")))
+THRESH_INSTIT_FUZZY = int(float(os.getenv("THRESH_INSTIT_FUZZY", "75")))
+THRESH_CURSO_FUZZY = int(float(os.getenv("THRESH_CURSO_FUZZY", "70")))
+
+# pesos duplicidade (mantidos)
+W_INSTIT, W_NOME, W_DATA, W_HORAS = 40, 30, 20, 10
 
 class ValState(TypedDict, total=False):
     cert_id: str
@@ -25,6 +35,9 @@ class ValState(TypedDict, total=False):
     justificativa: str
     evidencias: List[Dict[str, Any]]
     erros: List[str]
+    campos_validacao: Dict[str, Any]
+    ocr_text: str
+    ocr_pages: List[Dict[str, Any]]
 
 def _norm(s: Optional[str]) -> str:
     return " ".join(str(s or "").strip().split())
@@ -48,7 +61,8 @@ def _score_dup(ref: Dict[str, Any], cand: Dict[str, Any]) -> int:
     total = (s_inst*W_INSTIT + s_nome*W_NOME + s_data*W_DATA + s_hora*W_HORAS) / (W_INSTIT+W_NOME+W_DATA+W_HORAS)
     return int(round(total))
 
-# -------- nós --------
+# ---------------------------------- nós ----------------------------------
+
 def entrada_prisma(s: ValState) -> ValState:
     s["dados_raw"] = client.get_cert(s["cert_id"])
     return s
@@ -71,86 +85,96 @@ def padronizar(s: ValState) -> ValState:
     s.setdefault("evidencias", []).append({"tipo":"padronizacao"})
     return s
 
-def verificar_emissor(s: ValState) -> ValState:
-    """
-    Passos:
-      1) Se não houver nome da instituição -> indefinido.
-      2) Tenta ler do cache (Prisma/Issuer). Se trustLevel >= EMISSOR_CACHE_CONF_MIN, usa e retorna.
-      3) Se houver OPENAI_API_KEY, chama mini-agente LLM p/ buscar pelo nome e retorna JSON {valido, confianca, evidencias}.
-         - Caso melhore a confiança, faz upsert no cache.
-      4) Se nada disso, deixa indefinido (MVP).
-    """
-    inst = (s["dados"].get("instituicao") or "").strip()
-    if not inst:
-        s["emissor"] = {"valido": None, "confianca": 0.0, "fonte": "sem-instituicao", "evidencias": []}
-        s.setdefault("evidencias", []).append({"tipo": "emissor", "resultado": s["emissor"]})
+# ------------ OCR local (pdfplumber -> fallback Tesseract) ------------
+def carregar_ocr(s: ValState) -> ValState:
+    url = (s.get("dados") or {}).get("urlPDF")
+    if not url:
+        s.setdefault("erros", []).append("sem_url_pdf")
+        s.setdefault("evidencias", []).append({"tipo":"padronizacao","sub":"ocr_falhou","motivo":"sem_url"})
+        s["ocr_text"] = ""
+        s["ocr_pages"] = []
         return s
-
-    # ---------- 2) CACHE (opcional) ----------
-    cache = None
     try:
-        # Só tenta se seu client tiver esses helpers (não quebra se não tiver)
-        if hasattr(client, "get_issuer"):
-            cache = client.get_issuer(inst)  # espera {name, isTrusted, trustLevel, ...} ou None
-    except Exception:
-        cache = None
-
-    if cache:
-        trust = float(cache.get("trustLevel") or 0.0)
-        is_trusted = bool(cache.get("isTrusted"))
-        if trust >= EMISSOR_CACHE_CONF_MIN:
-            s["emissor"] = {
-                "valido": is_trusted,
-                "confianca": trust,
-                "fonte": "cache",
-                "evidencias": []  # opcionalmente poderia guardar 1 url em 'notes' no cache
-            }
-            s.setdefault("evidencias", []).append({"tipo": "emissor", "resultado": s["emissor"]})
-            return s  # cache forte já resolve
-
-    # ---------- 3) LLM (opcional) ----------
-    use_llm = bool(os.getenv("OPENAI_API_KEY"))
-    if use_llm:
-        try:
-            from agent.issuer_agent import issuer_verify  # mini-agente ReAct com tool de busca
-            r = issuer_verify(inst)  # -> {"valido": T|F|None, "confianca": 0..1, "evidencias": [{titulo,url}], "fonte":"llm+tavily"}
-        except Exception as e:
-            r = {"valido": None, "confianca": 0.0, "evidencias": [], "fonte": f"erro_agente:{e}"}
-    else:
-        r = {"valido": None, "confianca": 0.0, "evidencias": [], "fonte": "sem-llm"}
-
-    # monta resultado no estado
-    s["emissor"] = {
-        "valido": r.get("valido"),
-        "confianca": float(r.get("confianca") or 0.0),
-        "fonte": r.get("fonte") or ("llm" if use_llm else "mvp"),
-        "evidencias": r.get("evidencias", [])[:3]
-    }
-    s.setdefault("evidencias", []).append({"tipo": "emissor", "resultado": s["emissor"]})
-
-    # ---------- opcional: atualizar cache com o que a LLM achou ----------
-    try:
-        if hasattr(client, "upsert_issuer"):
-            # só grava se houver algum sinal
-            tl = float(s["emissor"]["confianca"])
-            itrust = bool(s["emissor"]["valido"]) if s["emissor"]["valido"] is not None else (tl >= EMISSOR_CACHE_CONF_MIN)
-            notes = None
-            if s["emissor"]["evidencias"]:
-                # guarda a 1ª evidência (url) em notes p/ referência rápida
-                notes = s["emissor"]["evidencias"][0].get("url")
-
-            client.upsert_issuer({
-                "name": inst,
-                "isTrusted": itrust,
-                "trustLevel": tl,
-                "notes": notes
-            })
-    except Exception:
-        pass
-
+        ocr = extract_text_from_pdf_url(url)
+        s["ocr_text"] = ocr.get("text","")
+        s["ocr_pages"] = ocr.get("pages",[])
+        s.setdefault("evidencias", []).append({"tipo":"padronizacao","sub":"ocr_carregado","modo":ocr.get("mode")})
+    except Exception as e:
+        s.setdefault("erros", []).append(f"ocr_erro:{e}")
+        s["ocr_text"] = ""
+        s["ocr_pages"] = []
+        s.setdefault("evidencias", []).append({"tipo":"padronizacao","sub":"ocr_falhou"})
     return s
 
+# ------------ Validação LLM (Prisma) × OCR por campo ------------
+def _find_hours(txt: str) -> List[str]:
+    return re.findall(r"\b(\d{1,3})\s*(h|horas)\b", txt, flags=re.IGNORECASE)
 
+def _best_line_match(needle: str, hay: str) -> tuple[str,int]:
+    lines = [ln.strip() for ln in (hay or "").splitlines() if ln.strip()]
+    if not needle or not lines: return ("", 0)
+    best = ""
+    best_s = 0
+    for ln in lines:
+        sc = fuzz.token_set_ratio(needle, ln)
+        if sc > best_s:
+            best_s = sc
+            best = ln
+    return best, best_s
+
+def validar_contra_ocr(s: ValState) -> ValState:
+    d = s["dados"]
+    ocr = s.get("ocr_text","") or ""
+    evid = s.setdefault("evidencias", [])
+    campos = {}
+
+    # nome
+    alvo_nome = d.get("nomeNoCertificado","")
+    best, sc = _best_line_match(alvo_nome, ocr)
+    status = "EXACT" if sc >= THRESH_NOME_OCR else ("FUZZY" if sc >= THRESH_NOME_FUZZY else "CONTRADICT")
+    evid.append({"tipo":"ocr","campo":"nome","snippet":best[:180],"score":round(sc/100.0,3)})
+    campos["nome"] = {"expected": alvo_nome, "status": status, "score": sc}
+
+    # instituicao
+    alvo_inst = d.get("instituicao","")
+    best, sc = _best_line_match(alvo_inst, ocr)
+    status = "EXACT" if sc >= THRESH_INSTIT_OCR else ("FUZZY" if sc >= THRESH_INSTIT_FUZZY else "CONTRADICT")
+    evid.append({"tipo":"ocr","campo":"instituicao","snippet":best[:180],"score":round(sc/100.0,3)})
+    campos["instituicao"] = {"expected": alvo_inst, "status": status, "score": sc}
+
+    # data (dd/mm/aaaa ou "dd de mês de aaaa")
+    alvo_data = d.get("dataConclusao")
+    datas = re.findall(r"\b(\d{1,2}/\d{1,2}/\d{2,4}|[0-3]?\d\s+de\s+[A-Za-zçãé]+\s+de\s+\d{4})\b", ocr)
+    if alvo_data and datas:
+        evid.append({"tipo":"ocr","campo":"data","snippet":str(datas[:3])[:180],"score":1.0})
+        campos["data"] = {"expected": alvo_data, "status": "EXACT", "score": 100}
+    else:
+        evid.append({"tipo":"ocr","campo":"data","snippet":"-", "score":0.0})
+        campos["data"] = {"expected": alvo_data, "status": "MISSING", "score": 0}
+
+    # horas (número + h/horas)
+    alvo_horas = str(d.get("horasAtribuidas") or "")
+    hs = _find_hours(ocr)
+    if alvo_horas and hs:
+        nums = {h[0] for h in hs}
+        ok = alvo_horas in nums
+        evid.append({"tipo":"ocr","campo":"horas","snippet":str(list(nums)[:4]),"score":1.0 if ok else 0.6})
+        campos["horas"] = {"expected": alvo_horas, "status": "EXACT" if ok else "FUZZY", "score": 100 if ok else 60}
+    else:
+        evid.append({"tipo":"ocr","campo":"horas","snippet":"-", "score":0.0})
+        campos["horas"] = {"expected": alvo_horas, "status": "MISSING", "score": 0}
+
+    # curso/titulo
+    alvo_tit = d.get("titulo","")
+    best, sc = _best_line_match(alvo_tit, ocr)
+    status = "EXACT" if sc >= THRESH_CURSO_OCR else ("FUZZY" if sc >= THRESH_CURSO_FUZZY else "CONTRADICT")
+    evid.append({"tipo":"ocr","campo":"curso","snippet":best[:180],"score":round(sc/100.0,3)})
+    campos["curso"] = {"expected": alvo_tit, "status": status, "score": sc}
+
+    s["campos_validacao"] = campos
+    return s
+
+# ------------ Regras IES existentes (mantidas) ------------
 def validar_regras_ies(s: ValState) -> ValState:
     d = s["dados"]
     hoje = datetime.utcnow().date().isoformat()
@@ -168,6 +192,7 @@ def validar_regras_ies(s: ValState) -> ValState:
     ]
     return s
 
+# ------------ Anti-duplicidade (mantido) ------------
 def anti_duplicidade(s: ValState) -> ValState:
     d = s["dados"]
     fortes = client.get_dup_fortes(d.get("fileHashSHA256"), exclude_id=d.get("id"))
@@ -206,72 +231,87 @@ def anti_duplicidade(s: ValState) -> ValState:
 
     return s
 
+# ------------ Decisão BINÁRIA (ACEITO | RECUSADO) ------------
 def decidir_status(s: ValState) -> ValState:
-    dups   = s["duplicidade"]
-    checks = s["checks"]
-    em     = s["emissor"]
+    d = s["dados"]
+    dups = s.get("duplicidade", {})
+    campos = s.get("campos_validacao", {})
+    checks = s.get("checks", {})
 
-    # 1) duplicata forte -> RECUSADO
+    motivos = []
+
+    # 1) duplicidade forte reprova
     if dups.get("confirmada"):
         s["status"] = "RECUSADO"
         s["justificativa"] = "Duplicidade confirmada (hash idêntico)."
         return s
 
-    # 2) montar causas reais de AJUSTAR
-    faltas = [k for k, v in checks.items() if not v]
-    causas = []
-    if dups.get("suspeita", False):
-        causas.append("duplicidade suspeita")
-    if REQUIRE_EMISSOR_VALIDO and em.get("valido") is None:
-        causas.append("emissor indefinido")
-    if faltas:
-        # legenda amigável (opcional)
-        legend = {
-            "horas_ok": "horas abaixo do mínimo",
-            "datas_ok": "data inválida",
-            "aluno_ok": "nome do aluno não confere",
-            "formato_ok": "título/tipo faltando"
-        }
-        causas += [legend.get(k, k) for k in faltas]
+    # 2) regras de negócio
+    hoje = datetime.utcnow().date().isoformat()
+    if d["horasAtribuidas"] < H_MIN:
+        motivos.append(f"horas abaixo do mínimo ({d['horasAtribuidas']}<{H_MIN})")
+    if not d["dataConclusao"] or d["dataConclusao"] > hoje:
+        motivos.append("data inválida ou futura")
 
-    if causas:
-        s["status"] = "AJUSTAR"
-        s["justificativa"] = "; ".join(causas)
+    # 3) similaridade do aluno (já computada)
+    if "aluno_ok" in checks and not checks["aluno_ok"]:
+        motivos.append("nome do aluno não confere com o usuário")
+
+    # 4) campos críticos a partir do OCR
+    criticos = ["nome","instituicao","data","horas","curso"]
+    for k in criticos:
+        st = (campos.get(k) or {}).get("status")
+        if st in ("MISSING","CONTRADICT"):
+            motivos.append(f"campo {k} não confirmado ({st})")
+
+    if motivos:
+        s["status"] = "RECUSADO"
+        s["justificativa"] = "; ".join(motivos)
         return s
 
-    # 3) caso sem causas -> ACEITO
     s["status"] = "ACEITO"
-    s["justificativa"] = "Regras atendidas e sem duplicidade."
+    s["justificativa"] = "Campos confirmados no OCR e sem duplicidade."
     return s
 
+# ------------ Auditoria/retorno (mantido) ------------
 def retornar_usuario(s: ValState) -> ValState:
     payload = {
         "certificadoId": s["dados"]["id"],
         "status": s["status"],
         "reason": s["justificativa"],
         "evidence": s.get("evidencias", []),
-        "stateSnap": {k:s[k] for k in ["dados","checks","duplicidade","emissor","status","justificativa"] if k in s}
+        "stateSnap": {k:s[k] for k in ["dados","checks","duplicidade","emissor","status","justificativa","campos_validacao"] if k in s}
     }
-    # grava auditoria e atualiza status no backend
     try: client.audit(payload)
     except Exception: pass
     try: client.set_status(s["dados"]["id"], s["status"])
     except Exception: pass
     return s
 
+# ------------ (opcional) verificador de emissor – deixado aqui para futuro uso ------------
+REQUIRE_EMISSOR_VALIDO = False
+EMISSOR_CACHE_CONF_MIN = float(os.getenv("EMISSOR_CACHE_CONF_MIN", "0.7"))
+def verificar_emissor(s: ValState) -> ValState:
+    # Mantido para uso futuro (web); não está ligado no grafo por ora.
+    return s
+
+# ------------ Build do grafo (nova ordem) ------------
 def _build():
     g = StateGraph(ValState)
     g.add_node("entrada_prisma", entrada_prisma)
     g.add_node("padronizar", padronizar)
-    g.add_node("verificar_emissor", verificar_emissor)
+    g.add_node("carregar_ocr", carregar_ocr)
+    g.add_node("validar_contra_ocr", validar_contra_ocr)
     g.add_node("validar_regras_ies", validar_regras_ies)
     g.add_node("anti_duplicidade", anti_duplicidade)
     g.add_node("decidir_status", decidir_status)
     g.add_node("retornar_usuario", retornar_usuario)
+
     g.set_entry_point("entrada_prisma")
     g.add_edge("entrada_prisma","padronizar")
-    g.add_edge("padronizar","verificar_emissor")
-    g.add_edge("verificar_emissor","validar_regras_ies")
+    g.add_edge("padronizar","carregar_ocr")
+    g.add_edge("carregar_ocr","validar_contra_ocr")
+    g.add_edge("validar_contra_ocr","validar_regras_ies")
     g.add_edge("validar_regras_ies","anti_duplicidade")
     g.add_edge("anti_duplicidade","decidir_status")
     g.add_edge("decidir_status","retornar_usuario")

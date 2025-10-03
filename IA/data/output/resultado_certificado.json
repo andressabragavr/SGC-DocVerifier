@@ -1,12 +1,12 @@
 [
   {
-    "semestre": "2023-S2",
-    "instituicao": "Simpósio Brasileiro sobre Fatores Humanos em Sistemas Computacionais (IHC)",
-    "tipo_certificado": "Artigo Científico",
-    "titulo": "Making roads safer: a vehicle blind spot alert system co-designed with end-users",
-    "quantidade_horas": "40",
-    "data_conclusao": "2023-10-20",
-    "nome": "Pedro Lisboa",
+    "semestre": "2024-S1",
+    "instituicao": "Alura",
+    "tipo_certificado": "Curso de Formação",
+    "titulo": "ARDUINO: DO ZERO AO JOGO",
+    "quantidade_horas": "20",
+    "data_conclusao": "2024-04-22",
+    "nome": "JOAO GUILHERME VOLTA KINOL",
     "relacao_com_curso": "Sim"
   }
 ]
