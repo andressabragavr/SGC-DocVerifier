@@ -10,6 +10,12 @@ import { dirname } from 'path';
 import { exec } from 'child_process';
 import util from 'util';
 import crypto from 'crypto';
+import axios from 'axios';
+import dotenv from 'dotenv';
+dotenv.config();
+
+// console.log('[env] AGENT_BASE=', process.env.AGENT_BASE);
+// console.log('[env] AGENT_API_KEY len=', (process.env.AGENT_API_KEY||'').length);
 
 const app = express();
 const PORT = 3000;
@@ -24,6 +30,9 @@ const uploadPath = path.join(__dirname, '..', 'uploads');
 if (!fs.existsSync(uploadPath)) {
   fs.mkdirSync(uploadPath);
 }
+
+const AGENT_BASE = process.env.AGENT_BASE ?? 'http://localhost:5055'; // FastAPI do agente
+const AGENT_API_KEY = process.env.AGENT_API_KEY ?? ''; // Chave de API do agente
 
 // Helpers de status (evita typos)
 export const STATUS = {
@@ -175,6 +184,12 @@ app.post('/certificados/upload', upload.single('arquivo'), async (req, res) => {
         fileHashSHA256: fileHashSHA256
       }
     });
+
+    try {
+    await validateWithAgent(certificado.id); // aguarda p/ garantir o print antes da resposta
+    } catch (_) {
+      // se der erro, só loga e continua respondendo
+    }
 
     // 3. Retorna o certificado salvo para o front
     res.status(201).json(certificado);
@@ -510,6 +525,41 @@ app.post('/issuer', async (req,res)=>{
   });
   res.status(201).json(it);
 });
+
+async function validateWithAgent(certId) {
+  const t0 = Date.now();
+  try {
+    const { data } = await axios.post(
+      `${AGENT_BASE}/validate`,
+      { cert_id: certId },
+      { headers: AGENT_API_KEY ? { 'X-Agent-Key': AGENT_API_KEY } : {}, timeout: 90000 }
+    );
+
+    // print amigável no terminal
+    console.log('\n==== DocVerifier/Agent ====');
+    console.log(`cert_id: ${certId}`);
+    console.log(`status : ${data.status}`);
+    console.log(`motivo : ${data.justificativa}`);
+    const evids = Array.isArray(data.evidencias) ? data.evidencias.slice(0, 6) : [];
+    if (evids.length) {
+      console.log('evidências (top):');
+      for (const ev of evids) {
+        const campo = ev.campo ? ` [${ev.campo}]` : '';
+        const score = ev.score != null ? ` (${ev.score})` : '';
+        const snippet = (ev.snippet ?? ev.sub ?? ev.modo ?? '').toString().slice(0, 120);
+        console.log(` - ${ev.tipo}${campo}${score} :: ${snippet}`);
+      }
+    }
+    console.log(`tempo  : ${Date.now() - t0} ms`);
+    console.log('===========================\n');
+
+    return data;
+  } catch (err) {
+    const payload = err?.response?.data ?? err.message ?? String(err);
+    console.error('[Agent] falha ao validar:', payload);
+    throw err;
+  }
+}
 
 
 // Inicia servidor
