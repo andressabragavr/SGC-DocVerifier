@@ -9,6 +9,10 @@ import re
 from agent.ocr_utils import extract_text_from_pdf_url
 from agent.atividades_data import MAP_HORAS
 import logging
+from agent.issuer_agent import issuer_verify
+
+REQUIRE_EMISSOR_VALIDO = True
+EMISSOR_CONF_MIN = float(os.getenv("EMISSOR_CONF_MIN", "0.85"))
 
 # logo no topo do arquivo (graph.py), configure um logging simples:
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -344,6 +348,7 @@ def decidir_status(s: ValState) -> ValState:
     dups = s.get("duplicidade", {})
     campos = s.get("campos_validacao", {})
     checks = s.get("checks", {})
+    emissor = s.get("emissor", {}) or {}
 
     motivos = []
 
@@ -371,6 +376,13 @@ def decidir_status(s: ValState) -> ValState:
         st = (campos.get(k) or {}).get("status")
         if st in ("MISSING", "CONTRADICT"):
             motivos.append(f"campo {k} não confirmado ({st})")
+            
+    # 5) emissor (se exigir e não for válido)
+    if REQUIRE_EMISSOR_VALIDO:
+        conf = float(emissor.get("confianca", 0.0) or 0.0)
+        valido = emissor.get("valido")
+        if not (valido is True and conf >= EMISSOR_CONF_MIN):
+            motivos.append("emissor não verificado na web (ou confiança insuficiente)")
 
     if motivos:
         s["status"] = "RECUSADO"
@@ -378,7 +390,7 @@ def decidir_status(s: ValState) -> ValState:
         return s
 
     s["status"] = "ACEITO"
-    s["justificativa"] = "Campos confirmados no OCR e sem duplicidade."
+    s["justificativa"] = "Campos confirmados no OCR, emissor verificado na web e sem duplicidade."
 
     return s
 
@@ -403,11 +415,73 @@ def retornar_usuario(s: ValState) -> ValState:
     return s
 
 # ------------ (opcional) verificador de emissor – deixado aqui para futuro uso ------------
-REQUIRE_EMISSOR_VALIDO = False
 EMISSOR_CACHE_CONF_MIN = float(os.getenv("EMISSOR_CACHE_CONF_MIN", "0.7"))
 
 def verificar_emissor(s: ValState) -> ValState:
-    # Mantido para uso futuro (web); não está ligado no grafo por ora.
+    d = s.get("dados", {})
+    campos = s.get("campos_validacao", {}) or {}
+    nome_backend = (d.get("instituicao") or "").strip()
+    nome_ocr_snippet = ((campos.get("instituicao") or {}).get("snippet") or "").strip()
+
+    # candidatos deduplicados e não vazios
+    candidatos = [x for x in {nome_backend, nome_ocr_snippet} if x]
+
+    if not candidatos:
+        s.setdefault("evidencias", []).append({"tipo": "emissor", "resultado": "sem_nome"})
+        s["emissor"] = {"valido": None, "confianca": 0.0, "evidencias": []}
+        return s
+
+    # tenta cache apenas pelo nome do backend
+    cached = None
+    try:
+        if nome_backend:
+            cached = client.get_issuer(nome_backend)
+    except Exception:
+        cached = None
+
+    if cached and float(cached.get("confianca", 0) or 0) >= EMISSOR_CACHE_CONF_MIN:
+        s["emissor"] = cached
+        s.setdefault("evidencias", []).append({
+            "tipo": "emissor", "fonte": cached.get("fonte","cache"),
+            "confianca": cached.get("confianca"), "evidencias": cached.get("evidencias", [])
+        })
+        return s
+
+    # consulta web: tenta o melhor resultado entre os candidatos
+    year_hint = None
+    try:
+        if d.get("dataConclusao"):
+            year_hint = str(datetime.fromisoformat(d["dataConclusao"]).year)
+    except Exception:
+        pass
+    melhores = []
+    for cand in candidatos:
+        res = issuer_verify(cand, year_hint=year_hint)
+        melhores.append((res.get("confianca") or 0.0, cand, res))
+    melhores.sort(reverse=True, key=lambda x: x[0])
+    conf, usado, res = (melhores[0] if melhores else (0.0, nome_backend, {"valido": None, "confianca": 0.0, "evidencias": [], "fonte":"duck-free"}))
+
+    s["emissor"] = res
+    s.setdefault("evidencias", []).append({
+        "tipo": "emissor",
+        "consulta_usada": usado,
+        "fonte": res.get("fonte"),
+        "confianca": res.get("confianca"),
+        "evidencias": res.get("evidencias", [])
+    })
+
+    # grava no backend (use o nome do backend se existir; senão o usado)
+    try:
+        client.upsert_issuer({
+            "nome": nome_backend or usado,
+            "valido": res.get("valido"),
+            "confianca": res.get("confianca"),
+            "evidencias": res.get("evidencias", []),
+            "fonte": res.get("fonte", "")
+        })
+    except Exception as e:
+        logging.info("issuer upsert falhou: %s", e)
+
     return s
 
 # ------------ Build do grafo (nova ordem) ------------
@@ -418,18 +492,23 @@ def _build():
     g.add_node("carregar_ocr", carregar_ocr)
     g.add_node("validar_contra_ocr", validar_contra_ocr)
     g.add_node("validar_regras_ies", validar_regras_ies)
+    g.add_node("verificar_emissor", verificar_emissor)   # << novo nó
     g.add_node("anti_duplicidade", anti_duplicidade)
     g.add_node("decidir_status", decidir_status)
     g.add_node("retornar_usuario", retornar_usuario)
+
     g.set_entry_point("entrada_prisma")
+
     g.add_edge("entrada_prisma", "padronizar")
     g.add_edge("padronizar", "carregar_ocr")
     g.add_edge("carregar_ocr", "validar_contra_ocr")
     g.add_edge("validar_contra_ocr", "validar_regras_ies")
-    g.add_edge("validar_regras_ies", "anti_duplicidade")
+    g.add_edge("validar_regras_ies", "verificar_emissor")  # << encadeia o emissor
+    g.add_edge("verificar_emissor", "anti_duplicidade")    # << segue o fluxo
     g.add_edge("anti_duplicidade", "decidir_status")
     g.add_edge("decidir_status", "retornar_usuario")
     g.add_edge("retornar_usuario", END)
+
     return g.compile()
 
 _app = _build()
