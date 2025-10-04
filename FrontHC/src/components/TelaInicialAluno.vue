@@ -32,7 +32,7 @@ export default defineComponent({
 
         // Filtra apenas os certificados com status "aprovado"
         const certificadosAprovados = certificados.filter(
-          (cert: any) => cert.status === 'Aprovado'
+          (cert: any) => cert.status === 'ACEITO'
         );
 
         // Soma das horas apenas dos certificados aprovados
