@@ -8,25 +8,18 @@ from application.services.ocr_service import OCRService
 from application.services.rag_service import contexto_rag
 from resources.prompts.carregador_prompt import carregar_prompt_formatado
 from resources.atividades import atividades
-# from adapters.llm.gemini_adapter import GeminiAdapter
-# from adapters.llm.llama_adapter import LlamaAdapter
+from adapters.llm.gemini_adapter import GeminiAdapter
+from adapters.llm.llama_adapter import LlamaAdapter
 from application.services.llm_service import LLMService
 from adapters.llm.openai_adapter import OpenAIAdapter 
 from application.services.json_service import salvar_resultado_em_json
+from application.services.dataset_logger import build_record, append_jsonl
+import json, uuid
 
 if __name__ == "__main__":
     load_dotenv()
     
     pasta_imagens = "../IA/data/imagens_convertidas"
-    
-    # Pedro
-    # caminho_arquivo = "data/alunos/certificados_Pedro_Lisboa.pdf"
-    # nome_aluno = "Pedro Henrique Lisboa"
-    
-    # Andressa
-    # caminho_arquivo = "data/alunos/210058 - Andressa Braga.pdf"
-    # caminho_arquivo = "data/alunos/CursoHTML, CSS e Boostrap5 -ANDRESSA.pdf"
-    # nome_aluno = "Andressa Braga Vieira Rodrigues"
     
     # RECEBIMENTO DE ARGUMENTOS DO BACKEND
     if len(sys.argv) < 3:
@@ -93,5 +86,30 @@ if __name__ == "__main__":
     resposta = servico_llm.obter_resposta(prompt_formatado, contexto=contexto)
     
     arquivo = salvar_resultado_em_json(resposta, "resultado_certificado")
+    
+    # 2) prepara dados pro dataset
+    ocr_text = "\n".join(textos_extraidos.values())
+    cert_id = f"{os.path.splitext(os.path.basename(caminho_arquivo))[0]}-{uuid.uuid4().hex[:6]}"
+
+    try:
+        llm_json = json.loads(resposta)
+    except Exception:
+        # se a LLM veio com cercas ```json, seu json_service já trata no arquivo;
+        # aqui tentamos limpar rapidamente para o dataset também:
+        txt = resposta.strip()
+        if txt.startswith("```json"):
+            txt = txt[7:]
+        if txt.endswith("```"):
+            txt = txt[:-3]
+        llm_json = json.loads(txt)
+
+    # 3) constrói o registro no formato mínimo e grava
+    record = build_record(
+        cert_id=cert_id,
+        hint_nome_aluno=nome_aluno,
+        ocr_text=ocr_text,
+        llm_json=llm_json,
+    )
+    append_jsonl(record)  # grava em data/gold/gold.jsonl
     
     print(resposta)
