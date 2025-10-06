@@ -1,5 +1,6 @@
 {contexto}
-Sua função é extrair informações de todos certificados passados. RESPONDA APENAS COM O JSON SOLICITADO, SEM COMENTÁRIOS OU CÓDIGO.
+Sua função é extrair informações do certificado passados. RESPONDA APENAS COM O JSON SOLICITADO, SEM COMENTÁRIOS OU CÓDIGO.
+SE O TEXTO NÃO FOR CERTIFICADO (ex.: recibo, nota fiscal, confirmação de compra, fatura, comprovante de pedido, ticket, extrato, etiqueta de envio, invoice, “Order #…”, “Subtotal”, “Grand Total”, “Billing/Shipping Address”, “Payment method”), RETORNE NULL para tipo_certificado, quantidade_horas e titulo, e marque relacao_com_curso como "Não".
 
 Texto extraído disponível no dicionário: {texto_dict}, contendo {num_cert} certificado(s).
 
