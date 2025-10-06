@@ -1,12 +1,12 @@
 [
   {
-    "semestre": "2023-2",
-    "instituicao": "Technische Hochschule Ingolstadt",
-    "tipo_certificado": "Intercâmbio",
-    "titulo": "Transcript of Records for Pedro Henrique Lisboa",
-    "quantidade_horas": "40",
-    "data_conclusao": "2024-03-31",
-    "nome": "Pedro Henrique Lisboa",
-    "relacao_com_curso": "Sim"
+    "semestre": null,
+    "instituicao": null,
+    "tipo_certificado": null,
+    "titulo": null,
+    "quantidade_horas": null,
+    "data_conclusao": null,
+    "nome": null,
+    "relacao_com_curso": "Não"
   }
 ]
