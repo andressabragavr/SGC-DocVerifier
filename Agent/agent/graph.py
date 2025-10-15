@@ -18,7 +18,7 @@ EMISSOR_CONF_MIN = float(os.getenv("EMISSOR_CONF_MIN", "0.85"))
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 
 # -------- envs / thresholds --------
-H_MIN = int(float(os.getenv("H_MIN", "10")))
+H_MIN = int(float(os.getenv("H_MIN", "1")))
 SIM_ALUNO = int(float(os.getenv("SIM_ALUNO", "92")))
 SIM_DUP_FRACA = int(float(os.getenv("SIM_DUP_FRACA", "88")))
 
