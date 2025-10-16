@@ -23,6 +23,8 @@ def build_record(
     *,
     cert_id: str,
     hint_nome_aluno: str,
+    hint_curso_aluno: str,
+    inscricao_aluno_ano: str,
     ocr_text: str,
     llm_json: Dict[str, Any],
 ) -> Dict[str, Any]:
@@ -45,6 +47,8 @@ def build_record(
     return {
         "id": cert_id,
         "hint_nome_aluno": hint_nome_aluno,
+        "hint_curso": hint_curso_aluno,
+        "ano_inscricao": inscricao_aluno_ano,
         "ocr_text": ocr_text,
         "gt_semestre": semestre if semestre else None,
         "gt_instituicao": item.get("instituicao") or None,

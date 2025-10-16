@@ -117,6 +117,8 @@ app.post('/certificados/upload', upload.single('arquivo'), async (req, res) => {
     const scriptPath = path.join(__dirname, '..', '..', 'IA', 'main.py');
     const caminhoPDF = path.join(uploadPath, file.filename);
     const nomeAluno = user.name || 'Aluno Desconhecido';
+    const raAluno = user.ra;
+    const cursoAluno = user.curso || 'Curso Desconhecido';
 
     const buffer = await fs.promises.readFile(caminhoPDF);
     const fileHashSHA256 = crypto.createHash('sha256').update(buffer).digest('hex');
@@ -132,7 +134,7 @@ app.post('/certificados/upload', upload.single('arquivo'), async (req, res) => {
     }
 
     const { stdout, stderr } = await execPromise(
-      `python "${scriptPath}" "${caminhoPDF}" "${nomeAluno}"`
+      `python "${scriptPath}" "${caminhoPDF}" "${nomeAluno}" "${raAluno}" "${cursoAluno}"`,
     );
     if (stderr) console.error('Erro da IA:', stderr);
 

@@ -23,11 +23,13 @@ if __name__ == "__main__":
     
     # RECEBIMENTO DE ARGUMENTOS DO BACKEND
     if len(sys.argv) < 3:
-        print(json.dumps({"erro": "Parâmetros insuficientes: <caminho_arquivo> <nome_aluno>"}))
+        print(json.dumps({"erro": "Parâmetros insuficientes: <caminho_arquivo> <nome_aluno> <ra_aluno> <curso_aluno>"}))
         sys.exit(1)
 
     caminho_arquivo = sys.argv[1]
     nome_aluno = sys.argv[2]
+    ra_aluno = sys.argv[3]
+    curso_aluno = sys.argv[4]
 
     # VERIFICAÇÃO DE EXISTÊNCIA
     if not os.path.exists(caminho_arquivo):
@@ -107,6 +109,8 @@ if __name__ == "__main__":
     record = build_record(
         cert_id=cert_id,
         hint_nome_aluno=nome_aluno,
+        hint_curso_aluno=curso_aluno,
+        inscricao_aluno_ano = 2000 + int(''.join(filter(str.isdigit, ra_aluno))[:2]),
         ocr_text=ocr_text,
         llm_json=llm_json,
     )
