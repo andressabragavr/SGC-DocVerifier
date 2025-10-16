@@ -70,11 +70,23 @@ app.get('/usuarios', async (req, res) => {
   res.status(200).json(users);
 });
 
-// Login
+// Login (aceita RA ou e-mail)
 app.post('/login', async (req, res) => {
-  const { ra, password } = req.body;
+  const { ra, email, password } = req.body;
   try {
-    const user = await prisma.user.findUnique({ where: { ra } });
+    const loginValue = String(email || ra || '').trim(); // usa email se vier, senão RA
+    if (!loginValue || !password) {
+      return res.status(400).json({ error: 'Informe RA ou e-mail e a senha.' });
+    }
+
+    const isEmail = loginValue.includes('@');
+
+    const user = isEmail
+      ? await prisma.user.findFirst({                   // busca por e-mail (case-insensitive)
+          where: { email: { equals: loginValue, mode: 'insensitive' } }
+        })
+      : await prisma.user.findUnique({ where: { ra: loginValue } }); // busca por RA
+
     if (!user || user.password !== password) {
       return res.status(401).json({ error: 'Credenciais inválidas' });
     }
