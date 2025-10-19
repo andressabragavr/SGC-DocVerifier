@@ -12,6 +12,7 @@ import util from 'util';
 import crypto from 'crypto';
 import axios from 'axios';
 import dotenv from 'dotenv';
+import { z } from "zod";
 dotenv.config();
 
 // console.log('[env] AGENT_BASE=', process.env.AGENT_BASE);
@@ -49,6 +50,15 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
+const userCreateSchema = z.object({
+  name: z.string().trim().min(2, "Nome é obrigatório"),
+  email: z.string().trim().email("E-mail inválido"),
+  password: z.string().trim().min(6, "Senha deve ter ao menos 6 caracteres"),
+  ra: z.string().trim().min(3, "RA é obrigatório"),
+  curso: z.string().trim().min(2, "Curso é obrigatório"),
+  tipo: z.enum(["aluno", "coordenador"]).default("aluno"),
+});
+
 // Middlewares
 app.use(express.json());
 app.use(cors());
@@ -57,11 +67,14 @@ app.use('/uploads', express.static(uploadPath));
 // Rotas de usuários
 app.post('/usuarios', async (req, res) => {
   try {
-    const user = await prisma.user.create({ data: req.body });
+    const data = userCreateSchema.parse(req.body);
+    const user = await prisma.user.create({ data });
     res.status(201).json(user);
-  } catch (error) {
-    console.error('Erro ao criar usuário:', error);
-    res.status(500).json({ error: 'Erro ao criar usuário' });
+  } catch (err) {
+    if (err?.issues) {
+      return res.status(400).json({ error: "Dados inválidos", details: err.issues });
+    }
+    res.status(500).json({ error: "Erro ao criar usuário" });
   }
 });
 
