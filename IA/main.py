@@ -109,7 +109,7 @@ if __name__ == "__main__":
     record = build_record(
         cert_id=cert_id,
         hint_nome_aluno=nome_aluno,
-        hint_curso_aluno=curso_aluno,
+        curso_aluno=curso_aluno,
         inscricao_aluno_ano = 2000 + int(''.join(filter(str.isdigit, ra_aluno))[:2]),
         ocr_text=ocr_text,
         llm_json=llm_json,
