@@ -12,8 +12,7 @@ export default defineComponent({
         { title: 'Tipo de Atividade', key: 'activityType' },
         { title: 'Data de Envio', key: 'submissionDate' },
         { title: 'Horas Atribuídas', key: 'hours' },
-        { title: 'Visualizar PDF', key: 'pdfLink' },
-        { title: 'Status', key: 'status' }
+        { title: 'Visualizar PDF', key: 'pdfLink' }
         ],
         items: [] as {
             title: string;
@@ -34,8 +33,7 @@ export default defineComponent({
         activityType: certificado.tipoAtividade,
         submissionDate: new Date(certificado.dataEnvio).toLocaleDateString('pt-BR'),
         hours: certificado.horasAtribuidas,
-        pdfLink: certificado.urlPDF,
-        status: certificado.status
+        pdfLink: certificado.urlPDF
       }));
     } catch (error) {
       console.error('Erro ao carregar certificados:', error);

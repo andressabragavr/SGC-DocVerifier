@@ -62,7 +62,7 @@ export default defineComponent({
     <div class="login-form">
       <input
         type="text"
-        placeholder="Login"
+        placeholder="Login / RA"
         v-model="login"
         class="input-field"
         :disabled="isLoading"

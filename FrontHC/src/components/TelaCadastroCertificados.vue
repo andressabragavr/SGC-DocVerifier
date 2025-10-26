@@ -1,6 +1,13 @@
 <script lang="ts">
 import Banner from './Banner.vue';
-import { defineComponent } from 'vue';
+import { defineComponent, computed } from 'vue';
+
+type BackendAdjustResponse = {
+  message: string;
+  needsInfo: boolean;
+  requiredFields: string[];
+  certificadoId: string;
+};
 
 export default defineComponent({
   name: 'TelaCadastroCertificados',
@@ -8,15 +15,34 @@ export default defineComponent({
 
   data() {
     return {
+      // upload
       file: null as File | null,
       fileName: '',
-      resultadoIA: null as any,
       isUploading: false,
-      notificacao: '' as string,              // guarda a mensagem de notificação
-      campoFaltante: '' as string,            // qual informação faltou (ex: data)
-      valorCampoFaltante: '' as string,       // valor inserido pelo aluno
-      precisaCampoExtra: false                // controla exibição do input extra
+
+      // estado do fluxo
+      hasSubmitted: false,          // 👈 esconde upload após primeira submissão
+      notificacao: '' as string,    // mensagem principal (sucesso/erro/ajustar)
+
+      // ajuste
+      needsInfo: false,
+      requiredFields: [] as string[],
+      certificadoId: '' as string,
+      complementoText: '' as string,
+      isCompleting: false,          // spinner do complemento
     };
+  },
+
+  computed: {
+    // remove duplicatas (ex.: “data de conclusão” repetido)
+    requiredFieldsUnique(): string[] {
+      return Array.from(new Set(this.requiredFields.map(f => (f || '').trim().toLowerCase())));
+    },
+
+    // mensagem “lista” na mesma linha, sem duplicar
+    requiredFieldsInline(): string {
+      return this.requiredFieldsUnique.join(', ');
+    }
   },
 
   methods: {
@@ -30,6 +56,89 @@ export default defineComponent({
 
     triggerFileUpload() {
       (this.$refs.fileInput as HTMLInputElement).click();
+    },
+
+    // --- utils p/ interpretar o texto do usuário e mapear p/ backend ---
+    parseDateToISO(s: string): string | null {
+      const t = s.trim();
+      // dd/mm/yyyy
+      const br = t.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+      if (br) {
+        const d = br[1].padStart(2, '0');
+        const m = br[2].padStart(2, '0');
+        const y = br[3];
+        return `${y}-${m}-${d}`;
+      }
+      // yyyy-mm-dd
+      const iso = t.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      if (iso) return t;
+      return null;
+    },
+
+    parseHoursToInt(s: string): number | null {
+      const m = s.match(/(\d{1,3})/);
+      if (!m) return null;
+      return parseInt(m[1], 10);
+    },
+
+    // Mapeia rótulos → chaves do backend
+    labelToKey(label: string): string | null {
+      const L = label.trim().toLowerCase();
+      if (L.includes('data')) return 'dataConclusao';
+      if (L.includes('carga') || L.includes('hora')) return 'horasAtribuidas';
+      if (L.includes('nome')) return 'nomeNoCertificado';
+      if (L.includes('institu')) return 'instituicao';
+      if (L.includes('título') || L.includes('curso')) return 'titulo';
+      return null;
+    },
+
+    buildComplementoObject(text: string): Record<string, any> {
+      // Estratégia simples:
+      // - Se só há 1 campo faltante, usa o texto inteiro para aquele campo.
+      // - Se há >1, tenta pares "campo: valor" por linha. Ex.: "data: 30/04/2024"
+      const complemento: Record<string, any> = {};
+      const missing = this.requiredFieldsUnique;
+
+      if (missing.length <= 1) {
+        const key = this.labelToKey(missing[0] || '') || 'observacao';
+        const val = text.trim();
+
+        if (key === 'dataConclusao') {
+          const iso = this.parseDateToISO(val);
+          if (iso) complemento[key] = iso;
+        } else if (key === 'horasAtribuidas') {
+          const h = this.parseHoursToInt(val);
+          if (h != null) complemento[key] = h;
+        } else if (key === 'observacao') {
+          complemento[key] = val;
+        } else {
+          complemento[key] = val;
+        }
+        return complemento;
+      }
+
+      // múltiplos campos: aceita linhas do tipo "campo: valor"
+      const lines = text.split(/\n+/).map(l => l.trim()).filter(Boolean);
+      for (const ln of lines) {
+        const parts = ln.split(':');
+        if (parts.length < 2) continue;
+        const fieldLabel = parts[0].trim().toLowerCase();
+        const value = parts.slice(1).join(':').trim();
+
+        const key = this.labelToKey(fieldLabel);
+        if (!key) continue;
+
+        if (key === 'dataConclusao') {
+          const iso = this.parseDateToISO(value);
+          if (iso) complemento[key] = iso;
+        } else if (key === 'horasAtribuidas') {
+          const h = this.parseHoursToInt(value);
+          if (h != null) complemento[key] = h;
+        } else {
+          complemento[key] = value;
+        }
+      }
+      return complemento;
     },
 
     async submitForm() {
@@ -46,71 +155,95 @@ export default defineComponent({
 
       try {
         this.isUploading = true;
-
         const res = await fetch('http://localhost:3000/certificados/upload', {
           method: 'POST',
           body: formData,
         });
 
-        if (!res.ok) {
-          const errText = await res.text().catch(() => '');
-          throw new Error(errText || 'Falha no upload');
-        }
+        const data = await res.json().catch(() => ({} as any));
+        this.hasSubmitted = true; // 👈 esconde upload após a 1ª tentativa
 
-        const data = await res.json();
-        this.resultadoIA = data;
-
-        // === TRATAMENTO DAS RESPOSTAS ===
-        if (data.status === 'rejeitado') {
-          // 1. Documento não pode ser cadastrado
-          this.notificacao = `Esse documento não pode ser cadastrado devido a ${data.motivo}. Por favor, tente novamente com outro documento.`;
-          this.precisaCampoExtra = false;
-
-        } else if (data.status === 'faltando_campo') {
-          // 2. Informação ausente → pedir ao aluno preencher
-          this.campoFaltante = data.campo; // ex: "data"
-          this.notificacao = `A ${data.campo} não foi encontrada, por favor insira no campo abaixo para prosseguir.`;
-          this.precisaCampoExtra = true;
-
-        } else {
-          // Sucesso
-          this.notificacao = 'Certificado cadastrado com sucesso!';
-          this.precisaCampoExtra = false;
+        if (res.status === 201) {
+          this.notificacao = data.message || 'Certificado cadastrado com sucesso!';
+          this.needsInfo = false;
+          this.requiredFields = [];
+          this.certificadoId = '';
+          this.complementoText = '';
+          // limpar seleção
           this.file = null;
           this.fileName = '';
           (this.$refs.fileInput as HTMLInputElement).value = '';
+          return;
         }
+
+        if (res.status === 202 && data.needsInfo) {
+          const d = data as BackendAdjustResponse;
+          this.notificacao = d.message || 'Faltam informações.';
+          this.needsInfo = true;
+          this.requiredFields = d.requiredFields || [];
+          this.certificadoId = d.certificadoId || '';
+          // mantém o arquivo selecionado visível, mas desabilitamos o upload
+          return;
+        }
+
+        // 400/500…
+        this.notificacao = data.message || 'Não foi possível cadastrar o certificado.';
+        this.needsInfo = false;
+        this.requiredFields = [];
+        this.certificadoId = '';
       } catch (err) {
-        console.error('Erro ao cadastrar certificado:', err);
-        this.notificacao = 'Erro ao cadastrar certificado';
+        console.error('Erro ao enviar certificado:', err);
+        this.notificacao = 'Erro ao enviar certificado.';
       } finally {
         this.isUploading = false;
       }
     },
 
-    async enviarCampoExtra() {
-      if (!this.valorCampoFaltante) return alert('Preencha o campo antes de enviar.');
+    async enviarComplemento() {
+      if (!this.certificadoId) {
+        alert('Operação inválida: id do certificado ausente.');
+        return;
+      }
+      const complemento = this.buildComplementoObject(this.complementoText);
+      if (!Object.keys(complemento).length) {
+        alert('Insira os dados solicitados.');
+        return;
+      }
 
       try {
-        const res = await fetch('http://localhost:3000/certificados/completar-info', {
+        this.isCompleting = true;
+        const res = await fetch(`http://localhost:3000/certificados/${this.certificadoId}/complementar`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            campo: this.campoFaltante,
-            valor: this.valorCampoFaltante,
-            certificadoId: this.resultadoIA?.id
-          })
+          body: JSON.stringify({ complemento })
         });
+        const data = await res.json().catch(() => ({} as any));
 
-        if (!res.ok) throw new Error('Falha ao enviar campo extra');
+        if (res.status === 200) {
+          // ACEITO após complementar
+          this.notificacao = data.message || 'Certificado cadastrado com sucesso!';
+          this.needsInfo = false;
+          this.requiredFields = [];
+          this.complementoText = '';
+          this.certificadoId = '';
+          return;
+        }
 
-        this.notificacao = 'Informação adicionada com sucesso! O certificado foi cadastrado.';
-        this.precisaCampoExtra = false;
-        this.valorCampoFaltante = '';
+        if (res.status === 202 && data.needsInfo) {
+          // ainda faltam infos — atualiza lista (deduplicada pelo computed)
+          this.notificacao = data.message || 'Ainda faltam informações.';
+          this.requiredFields = data.requiredFields || [];
+          this.complementoText = '';
+          return;
+        }
 
+        // recusado/erro
+        this.notificacao = data.message || 'Não foi possível concluir o cadastro.';
       } catch (err) {
-        console.error('Erro ao enviar campo extra:', err);
-        alert('Erro ao enviar informação complementar');
+        console.error('Erro ao complementar informações:', err);
+        this.notificacao = 'Erro ao complementar informações.';
+      } finally {
+        this.isCompleting = false;
       }
     }
   },
@@ -121,43 +254,71 @@ export default defineComponent({
   <Banner />
   <h1 class="title">Cadastro de Certificados</h1>
 
-  <div class="upload-container" :class="{ 'with-spinner': isUploading }">
-    <form @submit.prevent="submitForm">
+  <div class="upload-container" :class="{ 'with-spinner': isUploading || isCompleting }">
+    <!-- BLOCO DE UPLOAD some após a primeira submissão -->
+    <form @submit.prevent="submitForm" v-if="!hasSubmitted">
       <div class="form-group">
         <label for="certificate">
-          <button type="button" class="upload-button" @click="triggerFileUpload" :disabled="isUploading">
+          <button
+            type="button"
+            class="upload-button"
+            @click="triggerFileUpload"
+            :disabled="isUploading"
+          >
             Selecionar arquivo PDF
           </button>
         </label>
 
-        <input type="file" id="certificate" ref="fileInput" accept=".pdf"
-               @change="handleFileUpload" :disabled="isUploading" required />
+        <input
+          type="file"
+          id="certificate"
+          ref="fileInput"
+          accept=".pdf"
+          @change="handleFileUpload"
+          :disabled="isUploading"
+          required
+        />
       </div>
 
       <div v-if="fileName" class="file-info">
         <p class="file-name">Arquivo selecionado: {{ fileName }}</p>
       </div>
 
-      <button type="submit" class="submit-button" :disabled="isUploading">
+      <button type="submit" class="submit-button" :disabled="isUploading || !file">
         {{ isUploading ? 'Enviando...' : 'Upload' }}
       </button>
-
-      <div v-if="isUploading" class="spinner-wrapper">
-        <div class="spinner" aria-label="Carregando"></div>
-        <p class="spinner-text">Enviando certificado...</p>
-      </div>
     </form>
 
-    <!-- Notificação -->
-    <div v-if="notificacao" class="notificacao">
-      <p>{{ notificacao }}</p>
-    </div>
+    <!-- Mensagem principal -->
+    <p v-if="notificacao" class="notice">{{ notificacao }}</p>
 
-    <!-- Campo extra quando faltar dado -->
-    <div v-if="precisaCampoExtra" class="campo-extra">
-      <label :for="campoFaltante">{{ campoFaltante }}:</label>
-      <input type="text" v-model="valorCampoFaltante" :placeholder="`Insira a ${campoFaltante}`" />
-      <button @click="enviarCampoExtra">Enviar Informação</button>
+    <!-- Card de complementação (aparece quando AJUSTAR ou após envio) -->
+    <div v-if="hasSubmitted" class="complement-card">
+      <template v-if="needsInfo">
+        <h4>Informações faltantes:</h4>
+        <ul class="missing-list">
+          <li v-for="f in requiredFieldsUnique" :key="f">• {{ f }}</li>
+        </ul>
+
+        <textarea
+          v-model="complementoText"
+          class="complement-input"
+          placeholder="Insira aqui as informações solicitadas (ex.: nome correto, carga horária, data de conclusão...)"
+          :disabled="isCompleting"
+        ></textarea>
+
+        <button class="submit-button" @click="enviarComplemento" :disabled="isCompleting || !complementoText.trim()">
+          {{ isCompleting ? 'Enviando...' : 'Enviar informações' }}
+        </button>
+
+        <!-- Spinner POSICIONADO ABAIXO do campo -->
+        <div v-if="isUploading || isCompleting" class="spinner-wrapper">
+          <div class="spinner" aria-label="Carregando"></div>
+          <p class="spinner-text">
+            {{ isCompleting ? 'Enviando complementação...' : 'Enviando certificado...' }}
+          </p>
+        </div>
+      </template>
     </div>
   </div>
 </template>
@@ -181,14 +342,8 @@ export default defineComponent({
   transition: margin-bottom 0.3s ease;
 }
 
-/* Quando o spinner aparece */
 .upload-container.with-spinner {
-  margin-bottom: 80px; /* margem extra */
-}
-
-.spinner-wrapper {
-  margin-top: 30px;
-  text-align: center;
+  margin-bottom: 80px;
 }
 
 .form-group {
@@ -206,33 +361,18 @@ export default defineComponent({
   font-size: 18px;
   font-family: 'League Spartan', sans-serif;
 }
+.upload-button:hover { background-color: #FF4500; }
+.upload-button:disabled { opacity: 0.7; cursor: not-allowed; }
 
-.upload-button:hover {
-  background-color: #FF4500;
-}
+input[type="file"] { display: none; }
 
-.upload-button:disabled {
-  opacity: 0.7;
-  cursor: not-allowed;
-}
-
-input[type="file"] {
-  display: none;
-}
-
-.file-info {
-  text-align: center;
-  margin-top: 10px;
-}
-
-.file-name {
-  font-family: 'League Spartan', sans-serif;
-}
+.file-info { text-align: center; margin-top: 10px; }
+.file-name { font-family: 'League Spartan', sans-serif; }
 
 .submit-button {
   display: block;
   padding: 10px 80px;
-  margin: 30px auto 0;
+  margin: 20px auto 0;
   border: none;
   background-color: #A3A0A0;
   color: white;
@@ -241,68 +381,58 @@ input[type="file"] {
   border-radius: 5px;
   cursor: pointer;
 }
+.submit-button:hover:not(:disabled) { background-color: #000; }
+.submit-button:disabled { opacity: 0.7; cursor: not-allowed; }
 
-.submit-button:hover:not(:disabled) {
-  background-color: #000;
-}
-
-.submit-button:disabled {
-  opacity: 0.7;
-  cursor: not-allowed;
-}
-
-/* Spinner */
-.spinner-wrapper {
-  margin-top: 20px;
+.notice {
+  margin: 12px 4px 0;
   text-align: center;
-  margin-bottom: 20px;
+  font-family: 'League Spartan', sans-serif;
 }
 
+.complement-card {
+  margin-top: 14px;
+  padding: 16px;
+  border: 1px solid #ddd;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.missing-list {
+  list-style: none;
+  padding-left: 0;
+  margin: 0 0 10px 0;
+  font-family: 'League Spartan', sans-serif;
+}
+.missing-list li { margin-left: 8px; }
+
+.complement-input {
+  width: 100%;
+  min-height: 90px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  padding: 10px;
+  font-family: 'League Spartan', sans-serif;
+  margin-top: 8px;
+}
+
+.spinner-wrapper {
+  margin-top: 14px;
+  text-align: center;
+  margin-bottom: 6px;
+}
 .spinner {
-  border: 6px solid #f3f3f3;     /* cinza claro */
-  border-top: 6px solid #FF8C00;  /* laranja */
+  border: 6px solid #f3f3f3;
+  border-top: 6px solid #FF8C00;
   border-radius: 50%;
-  width: 40px;
-  height: 40px;
+  width: 40px; height: 40px;
   animation: spin 0.8s linear infinite;
   margin: 0 auto 8px;
 }
-
 .spinner-text {
   font-family: 'League Spartan', sans-serif;
   font-size: 14px;
   color: #333;
 }
-
-.notificacao {
-  margin-top: 20px;
-  padding: 15px;
-  border-radius: 8px;
-  background-color: #ffe8e8;
-  color: #a94442;
-  font-family: 'League Spartan', sans-serif;
-}
-
-.campo-extra {
-  margin-top: 20px;
-  text-align: center;
-}
-
-.campo-extra input {
-  padding: 8px;
-  margin-right: 10px;
-}
-
-.campo-extra button {
-  padding: 8px 15px;
-  background: #FF8C00;
-  border: none;
-  color: #fff;
-  cursor: pointer;
-  border-radius: 5px;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
+@keyframes spin { to { transform: rotate(360deg); } }
 </style>

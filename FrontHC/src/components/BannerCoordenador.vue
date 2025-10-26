@@ -27,7 +27,7 @@ export default defineComponent({
             <nav class="menuOptions">
             <!-- <router-link to="/TelaConsultarHistorico" class="menu-item" :class="{ 'active': isActive('/TelaConsultarHistorico') }">Consultar Histórico</router-link> -->
             <router-link to="/TelaRelatorio" class="menu-item" :class="{ 'active': isActive('/TelaRelatorio') }">Gerar Relatório</router-link>
-            <router-link to="/TelaValidarAtividades" class="menu-item" :class="{ 'active': isActive('/TelaValidarAtividades') }">Validar Atividades</router-link>
+            <router-link to="/TelaInicialCoordenador" class="menu-item" :class="{ 'active': isActive('/TelaInicialCoordenador') }">Tela Inicial</router-link>
         </nav>
         </div>
     </header>
