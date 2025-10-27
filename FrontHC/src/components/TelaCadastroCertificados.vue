@@ -178,11 +178,13 @@ export default defineComponent({
 
         if (res.status === 202 && data.needsInfo) {
           const d = data as BackendAdjustResponse;
-          this.notificacao = d.message || 'Faltam informações.';
+
+          const uniq: string[] = this.dedupFields(d.requiredFields ?? []);
+
           this.needsInfo = true;
-          this.requiredFields = d.requiredFields || [];
+          this.requiredFields = uniq;          // <-- agora é string[]
           this.certificadoId = d.certificadoId || '';
-          // mantém o arquivo selecionado visível, mas desabilitamos o upload
+          this.notificacao = `As seguintes informações são necessárias para o cadastro do certificado: ${uniq.join(', ')}`;
           return;
         }
 
@@ -230,10 +232,11 @@ export default defineComponent({
         }
 
         if (res.status === 202 && data.needsInfo) {
-          // ainda faltam infos — atualiza lista (deduplicada pelo computed)
-          this.notificacao = data.message || 'Ainda faltam informações.';
-          this.requiredFields = data.requiredFields || [];
+          const uniq: string[] = this.dedupFields(data.requiredFields ?? []);
+
+          this.requiredFields = uniq;          // <-- string[]
           this.complementoText = '';
+          this.notificacao = `Ainda faltam informações: ${uniq.join(', ')}`;
           return;
         }
 
@@ -245,6 +248,14 @@ export default defineComponent({
       } finally {
         this.isCompleting = false;
       }
+    },
+
+    dedupFields(fields: string[]): string[] {
+      return Array.from(
+        new Set<string>(
+          (fields ?? []).map((f: string) => (f ?? '').trim().toLowerCase())
+        )
+      );
     }
   },
 });
