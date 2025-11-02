@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = 'http://localhost:3000';
+const API_URL = 'https://tccbackend2-hccfh0gyeperdjbx.brazilsouth-01.azurewebsites.net';
 
 export default {
   async buscarAlunoPorRA(ra: string) {

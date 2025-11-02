@@ -155,7 +155,7 @@ export default defineComponent({
 
       try {
         this.isUploading = true;
-        const res = await fetch('http://localhost:3000/certificados/upload', {
+        const res = await fetch('https://tccbackend2-hccfh0gyeperdjbx.brazilsouth-01.azurewebsites.net/certificados/upload', {
           method: 'POST',
           body: formData,
         });
@@ -214,7 +214,7 @@ export default defineComponent({
 
       try {
         this.isCompleting = true;
-        const res = await fetch(`http://localhost:3000/certificados/${this.certificadoId}/complementar`, {
+        const res = await fetch(`https://tccbackend2-hccfh0gyeperdjbx.brazilsouth-01.azurewebsites.net/certificados/${this.certificadoId}/complementar`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ complemento })

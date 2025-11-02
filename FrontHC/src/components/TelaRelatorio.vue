@@ -39,7 +39,7 @@ export default {
 
         const filtro = campoMap[this.selectedOption];
         try {
-            const res = await axios.get(`http://localhost:3000/certificados/busca`, {
+            const res = await axios.get(`https://tccbackend2-hccfh0gyeperdjbx.brazilsouth-01.azurewebsites.net/certificados/busca`, {
             params: { filtro, valor: this.searchQuery }
             });
             this.items = res.data.certificados;

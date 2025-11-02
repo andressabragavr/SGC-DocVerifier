@@ -2,7 +2,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: 'http://localhost:3000', // URL do seu backend
+  baseURL: 'https://tccbackend2-hccfh0gyeperdjbx.brazilsouth-01.azurewebsites.net',
 });
 
 export default api;

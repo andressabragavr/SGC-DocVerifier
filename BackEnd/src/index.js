@@ -16,9 +16,10 @@ import { z } from 'zod';
 dotenv.config();
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 8080;
 const prisma = new PrismaClient();
 const execPromise = util.promisify(exec);
+
 
 // Diretório de upload
 const __filename = fileURLToPath(import.meta.url);
@@ -57,8 +58,17 @@ const userCreateSchema = z.object({
 });
 
 // Middlewares
+const allowedOrigins = [
+  "http://localhost:5173",// front local
+  "https://docverifier.com"// front hospedado
+];
+app.use(cors({
+  origin: allowedOrigins,
+  methods: ["GET", "POST", "PUT", "DELETE"],
+  credentials: true
+}));
+
 app.use(express.json());
-app.use(cors());
 app.use('/uploads', express.static(uploadPath));
 
 /* =========================
@@ -75,6 +85,10 @@ app.post('/usuarios', async (req, res) => {
     }
     res.status(500).json({ error: 'Erro ao criar usuário' });
   }
+});
+
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok' });
 });
 
 app.get('/usuarios', async (req, res) => {
@@ -194,7 +208,7 @@ app.post('/certificados/upload', upload.single('arquivo'), async (req, res) => {
         tipoAtividade: dados.tipo_certificado || 'Desconhecido',
         dataEnvio: new Date(),
         horasAtribuidas: horas,
-        urlPDF: `http://localhost:3000/uploads/${file.filename}`,
+        urlPDF: `${process.env.PDF_BASE_URL}/uploads/${file.filename}`,
         status: STATUS.PENDENTE,
         userId: user.id,
         instituicao: dados.instituicao || null,
@@ -638,6 +652,8 @@ async function validateWithAgent(certId, { skipOCR = false } = {}) {
     console.error('[Agent] falha ao validar:', payload);
     throw err;
   }
+
+  
 }
 
 /* =========================

@@ -2,9 +2,11 @@
   "name": "tcc_backend",
   "version": "1.0.0",
   "type": "module",
-  "main": "index.js",
+  "main": "src/index.js",
   "scripts": {
-    "dev": "nodemon src/index.js"
+    "dev": "nodemon src/index.js",
+    "start": "node src/index.js",
+    "postinstall": "prisma generate"
   },
   "keywords": [],
   "author": "",
@@ -24,3 +26,5 @@
     "prisma": "^6.6.0"
   }
 }
+
+
