@@ -492,7 +492,7 @@ def _build():
     g.add_node("carregar_ocr", carregar_ocr)
     g.add_node("validar_contra_ocr", validar_contra_ocr)
     g.add_node("validar_regras_ies", validar_regras_ies)
-    g.add_node("verificar_emissor", verificar_emissor)   # << novo nó
+    g.add_node("verificar_emissor", verificar_emissor)
     g.add_node("anti_duplicidade", anti_duplicidade)
     g.add_node("decidir_status", decidir_status)
     g.add_node("retornar_usuario", retornar_usuario)
@@ -503,8 +503,8 @@ def _build():
     g.add_edge("padronizar", "carregar_ocr")
     g.add_edge("carregar_ocr", "validar_contra_ocr")
     g.add_edge("validar_contra_ocr", "validar_regras_ies")
-    g.add_edge("validar_regras_ies", "verificar_emissor")  # << encadeia o emissor
-    g.add_edge("verificar_emissor", "anti_duplicidade")    # << segue o fluxo
+    g.add_edge("validar_regras_ies", "verificar_emissor")
+    g.add_edge("verificar_emissor", "anti_duplicidade")
     g.add_edge("anti_duplicidade", "decidir_status")
     g.add_edge("decidir_status", "retornar_usuario")
     g.add_edge("retornar_usuario", END)
