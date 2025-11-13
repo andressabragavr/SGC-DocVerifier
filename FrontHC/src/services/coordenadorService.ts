@@ -1,16 +1,22 @@
 import axios from 'axios';
 
-const API_URL = 'http://localhost:3000'; 
+const API_URL = 'http://localhost:3000';
 
 export default {
-  async getAlunosComCertificados() {
-    const res = await axios.get(`${API_URL}/certificados/validacao`);
+  async getIndicadoresPorTipo() {
+    const res = await axios.get(`${API_URL}/indicadores/tipos`);
+    return res.data; // { data: [{ tipoAtividade, count }] }
+  },
+
+  async getGraficoTipos() {
+    const res = await axios.get(`${API_URL}/indicadores/grafico-tipos`);
+    return res.data; // { imageUrl }
+  },
+  
+  async buscarAlunoPorRA(ra: string) {
+    const res = await axios.get(`${API_URL}/certificados/busca`, {
+      params: { filtro: 'ra', valor: ra }
+    });
     return res.data;
-  },
-  async aprovarCertificado(id: string) {
-    return axios.put(`${API_URL}/certificados/${id}/aprovar`);
-  },
-  async rejeitarCertificado(id: string) {
-    return axios.delete(`${API_URL}/certificados/${id}`);
   }
 };

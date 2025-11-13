@@ -8,8 +8,8 @@ from application.services.ocr_service import OCRService
 from application.services.rag_service import contexto_rag
 from resources.prompts.carregador_prompt import carregar_prompt_formatado
 from resources.atividades import atividades
-from adapters.llm.gemini_adapter import GeminiAdapter
-from adapters.llm.llama_adapter import LlamaAdapter
+# from adapters.llm.gemini_adapter import GeminiAdapter
+# from adapters.llm.llama_adapter import LlamaAdapter
 from application.services.llm_service import LLMService
 from adapters.llm.openai_adapter import OpenAIAdapter 
 from application.services.json_service import salvar_resultado_em_json

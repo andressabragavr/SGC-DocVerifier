@@ -1,7 +1,7 @@
 <script lang="ts">
 import { defineComponent, ref } from 'vue';
 import BannerCoordenador from './BannerCoordenador.vue';
-import coordenadorService from '@/services/coordenadorService';
+import coordenadorService from '../services/coordenadorService';
 
 export default defineComponent({
     components: { BannerCoordenador },
@@ -29,35 +29,12 @@ export default defineComponent({
             }
         };
 
-        const aprovarCertificado = async (certificadoId: number) => {
-            try {
-                await coordenadorService.aprovarCertificado(certificadoId);
-                await buscarAluno(); // Atualiza os dados
-            } catch (error) {
-                console.error('Erro ao aprovar certificado:', error);
-            }
-        };
-
-        const rejeitarCertificado = async (certificadoId: number) => {
-            const motivo = prompt('Informe o motivo da rejeição:');
-            if (motivo) {
-                try {
-                    await coordenadorService.rejeitarCertificado(certificadoId, motivo);
-                    await buscarAluno(); // Atualiza os dados
-                } catch (error) {
-                    console.error('Erro ao rejeitar certificado:', error);
-                }
-            }
-        };
-
         return {
             ra,
             isLoading,
             errorMessage,
             aluno,
-            buscarAluno,
-            aprovarCertificado,
-            rejeitarCertificado
+            buscarAluno
         };
     }
 });
@@ -101,23 +78,7 @@ export default defineComponent({
                     <p>Tipo: {{ cert.tipoAtividade }}</p>
                     <p>Data: {{ cert.dataEnvio }}</p>
                     <p>Horas: {{ cert.horas }}</p>
-                    <p>Status: {{ cert.status }}</p>
-                    <div class="acoes">
-                        <button 
-                            @click="aprovarCertificado(cert.id)"
-                            class="aprovar-button"
-                            v-if="cert.status === 'PENDENTE'"
-                        >
-                            Aprovar
-                        </button>
-                        <button 
-                            @click="rejeitarCertificado(cert.id)"
-                            class="rejeitar-button"
-                            v-if="cert.status === 'PENDENTE'"
-                        >
-                            Rejeitar
-                        </button>
-                    </div>
+                    <!-- <p>Status: {{ cert.status }}</p> -->
                 </div>
             </div>
         </div>

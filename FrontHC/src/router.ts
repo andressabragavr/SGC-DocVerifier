@@ -7,7 +7,7 @@ import TelaHistorico from './components/TelaHistorico.vue';
 import TelaCadastroCertificados from './components/TelaCadastroCertificados.vue';
 import TelaConsultarHistorico from './components/TelaConsultarHistorico.vue';
 import TelaRelatorio from './components/TelaRelatorio.vue';
-import TelaValidarAtividades from './components/TelaValidarAtividades.vue';
+import TelaInicialCoordenador from './components/TelaInicialCoordenador.vue';
 
 
 const routes: Array<RouteRecordRaw> = [
@@ -18,7 +18,7 @@ const routes: Array<RouteRecordRaw> = [
     { path: '/TelaHistorico', name: 'TelaHistorico', component: TelaHistorico},
     { path: '/TelaConsultarHistorico', name: 'TelaConsultarHistorico', component: TelaConsultarHistorico },
     { path: '/TelaRelatorio', name: 'TelaRelatorio', component: TelaRelatorio },
-    { path: '/TelaValidarAtividades', name: 'TelaValidarAtividades', component: TelaValidarAtividades }
+    { path: '/TelaInicialCoordenador', name: 'TelaInicialCoordenador', component: TelaInicialCoordenador }
   ];
 
   const router = createRouter({

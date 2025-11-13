@@ -30,6 +30,20 @@ THRESH_NOME_FUZZY = int(float(os.getenv("THRESH_NOME_FUZZY", "70")))
 THRESH_INSTIT_FUZZY = int(float(os.getenv("THRESH_INSTIT_FUZZY", "75")))
 THRESH_CURSO_FUZZY = int(float(os.getenv("THRESH_CURSO_FUZZY", "70")))
 
+FIELD_LABELS = {
+    "nome": "nome do aluno",
+    "instituicao": "instituição",
+    "data": "data de conclusão",
+    "horas": "carga horária",
+    "curso": "título/curso",
+}
+
+def _labelize(fields):
+    labs = []
+    for f in fields:
+        labs.append(FIELD_LABELS.get(f, f))
+    return labs
+
 # pesos duplicidade (mantidos)
 W_INSTIT, W_NOME, W_DATA, W_HORAS = 40, 30, 20, 10
 ALLOW_INFER_HOURS = int(os.getenv("ALLOW_INFER_HOURS", "1")) == 1
@@ -49,6 +63,8 @@ class ValState(TypedDict, total=False):
     campos_validacao: Dict[str, Any]
     ocr_text: str
     ocr_pages: List[Dict[str, Any]]
+    campos_faltantes: List[str]
+    skip_ocr: bool
 
 def _norm(s: Optional[str]) -> str:
     return " ".join(str(s or "").strip().split())
@@ -81,6 +97,7 @@ def _score_dup(ref: Dict[str, Any], cand: Dict[str, Any]) -> int:
 # ---------------------------------- nós ----------------------------------
 def entrada_prisma(s: ValState) -> ValState:
     s["dados_raw"] = client.get_cert(s["cert_id"])
+    s["skip_ocr"] = bool(s.get("skip_ocr", False))
     return s
 
 def padronizar(s: ValState) -> ValState:
@@ -107,6 +124,12 @@ def _preview(text: str, n: int = 800) -> str:
     return (text[:n] + ("…[cut]" if len(text) > n else ""))
 
 def carregar_ocr(s: ValState) -> ValState:
+    if s.get("skip_ocr"):
+        s.setdefault("evidencias", []).append({"tipo": "ocr", "sub": "skipped"})
+        s["ocr_text"] = ""
+        s["ocr_pages"] = []
+        return s
+    
     url = (s.get("dados") or {}).get("urlPDF")
     if not url:
         s.setdefault("erros", []).append("sem_url_pdf")
@@ -184,6 +207,12 @@ def _best_line_match(needle: str, hay: str) -> tuple[str, int]:
     return best, best_s
 
 def validar_contra_ocr(s: ValState) -> ValState:
+    if s.get("skip_ocr"):
+        # nenhum erro de OCR será considerado
+        s["campos_validacao"] = {}
+        s.setdefault("evidencias", []).append({"tipo": "ocr", "sub": "validation_skipped"})
+        return s
+    
     d = s["dados"]
     ocr = s.get("ocr_text", "") or ""
     evid = s.setdefault("evidencias", [])
@@ -204,7 +233,7 @@ def validar_contra_ocr(s: ValState) -> ValState:
         "FUZZY" if sc >= THRESH_NOME_FUZZY else "CONTRADICT")
     evid.append({"tipo": "ocr", "campo": "nome",
                 "snippet": best[:180], "score": round(sc/100.0, 3)})
-    campos["nome"] = {"expected": alvo_nome, "status": status, "score": sc}
+    campos["nome"] = {"expected": alvo_nome, "status": status, "score": sc, "snippet": best}
 
     # -------- instituição --------
     alvo_inst = d.get("instituicao", "")
@@ -213,8 +242,7 @@ def validar_contra_ocr(s: ValState) -> ValState:
         "FUZZY" if sc >= THRESH_INSTIT_FUZZY else "CONTRADICT")
     evid.append({"tipo": "ocr", "campo": "instituicao",
                 "snippet": best[:180], "score": round(sc/100.0, 3)})
-    campos["instituicao"] = {
-        "expected": alvo_inst, "status": status, "score": sc}
+    campos["instituicao"] = {"expected": alvo_inst, "status": status, "score": sc, "snippet": best}
 
     # -------- data (compara presença; se quiser, depois normalizamos) --------
     alvo_data = d.get("dataConclusao")
@@ -274,7 +302,7 @@ def validar_contra_ocr(s: ValState) -> ValState:
         "FUZZY" if sc >= THRESH_CURSO_FUZZY else "CONTRADICT")
     evid.append({"tipo": "ocr", "campo": "curso",
                 "snippet": best[:180], "score": round(sc/100.0, 3)})
-    campos["curso"] = {"expected": alvo_tit, "status": status, "score": sc}
+    campos["curso"] = {"expected": alvo_tit, "status": status, "score": sc, "snippet": best}
 
     s["campos_validacao"] = campos
     return s
@@ -342,15 +370,16 @@ def anti_duplicidade(s: ValState) -> ValState:
                    "resultado": "sem_suspeita"})
     return s
 
-# ------------ Decisão BINÁRIA (ACEITO | RECUSADO) ------------
+# ------------ Decisão BINÁRIA (ACEITO | RECUSADO | AJUSTAR) ------------
 def decidir_status(s: ValState) -> ValState:
     d = s["dados"]
-    dups = s.get("duplicidade", {})
-    campos = s.get("campos_validacao", {})
-    checks = s.get("checks", {})
+    dups = s.get("duplicidade", {}) or {}
+    campos = s.get("campos_validacao", {}) or {}
+    checks = s.get("checks", {}) or {}
     emissor = s.get("emissor", {}) or {}
 
-    motivos = []
+    motivos_recusa = []   # inválidos/contraditórios -> RECUSADO
+    faltas = []     # faltando informação -> AJUSTAR
 
     # 1) duplicidade forte reprova
     if dups.get("confirmada"):
@@ -358,40 +387,56 @@ def decidir_status(s: ValState) -> ValState:
         s["justificativa"] = "Duplicidade confirmada (hash idêntico)."
         return s
 
-    # 2) regras de negócio
+    # 2) regras de negócio (inválidos)
     hoje = datetime.utcnow().date().isoformat()
-    if d["horasAtribuidas"] < H_MIN:
-        motivos.append(
-            f"horas abaixo do mínimo ({d['horasAtribuidas']}<{H_MIN})")
-    if not d["dataConclusao"] or d["dataConclusao"] > hoje:
-        motivos.append("data inválida ou futura")
+    if d.get("horasAtribuidas", 0) < H_MIN:
+        motivos_recusa.append(f"horas abaixo do mínimo ({d.get('horasAtribuidas', 0)}<{H_MIN})")
 
-    # 3) similaridade do aluno (já computada)
+    if not d.get("dataConclusao"):
+        # ausência de data -> AJUSTAR
+        faltas.append("data")
+    elif d["dataConclusao"] > hoje:
+        # data futura/ inválida -> RECUSADO
+        motivos_recusa.append("data inválida ou futura")
+
+    # 3) similaridade do aluno
     if "aluno_ok" in checks and not checks["aluno_ok"]:
-        motivos.append("nome do aluno não confere com o usuário")
+        motivos_recusa.append("nome do aluno não confere com o usuário")
 
     # 4) campos críticos a partir do OCR
+    #    - CONTRADICT -> RECUSADO
+    #    - MISSING -> AJUSTAR
     criticos = ["nome", "instituicao", "data", "horas", "curso"]
     for k in criticos:
         st = (campos.get(k) or {}).get("status")
-        if st in ("MISSING", "CONTRADICT"):
-            motivos.append(f"campo {k} não confirmado ({st})")
+        if st == "CONTRADICT":
+            motivos_recusa.append(f"campo {FIELD_LABELS.get(k,k)} não confirmado (CONTRADICT)")
+        elif st == "MISSING":
+            faltas.append(k)
             
-    # 5) emissor (se exigir e não for válido)
+    # 5) emissor (se exigir e não for válido) -> RECUSADO
     if REQUIRE_EMISSOR_VALIDO:
         conf = float(emissor.get("confianca", 0.0) or 0.0)
         valido = emissor.get("valido")
         if not (valido is True and conf >= EMISSOR_CONF_MIN):
-            motivos.append("emissor não verificado na web (ou confiança insuficiente)")
+            motivos_recusa.append("emissor não verificado na web (ou confiança insuficiente)")
 
-    if motivos:
+    # ----- decisão -----
+    if motivos_recusa:
         s["status"] = "RECUSADO"
-        s["justificativa"] = "; ".join(motivos)
+        s["justificativa"] = "; ".join(motivos_recusa)
+        s["campos_faltantes"] = []  # explícito
+        return s
+
+    if faltas:
+        s["status"] = "AJUSTAR"
+        s["justificativa"] = "Faltam informações: " + ", ".join(_labelize(faltas))
+        s["campos_faltantes"] = _labelize(faltas)
         return s
 
     s["status"] = "ACEITO"
-    s["justificativa"] = "Campos confirmados no OCR, emissor verificado na web e sem duplicidade."
-
+    s["justificativa"] = "Campos confirmados no OCR, emissor verificado e sem duplicidade."
+    s["campos_faltantes"] = []
     return s
 
 # ------------ Auditoria/retorno (mantido) ------------
@@ -402,7 +447,8 @@ def retornar_usuario(s: ValState) -> ValState:
         "reason": s["justificativa"],
         "evidence": s.get("evidencias", []),
         "stateSnap": {k: s[k] for k in
-                      ["dados", "checks", "duplicidade", "emissor", "status", "justificativa", "campos_validacao"] if k in s}
+                      ["dados", "checks", "duplicidade", "emissor", "status", "justificativa", "campos_validacao"] if k in s},
+        "campos_faltantes": s.get("campos_faltantes", [])
     }
     try:
         client.audit(payload)
@@ -513,10 +559,11 @@ def _build():
 
 _app = _build()
 
-def run_validation(cert_id: str):
-    result = _app.invoke({"cert_id": cert_id})
+def run_validation(cert_id: str, skip_ocr: bool = False):
+    result = _app.invoke({"cert_id": cert_id, "skip_ocr": bool(skip_ocr)})
     return {
         "status": result.get("status"),
         "justificativa": result.get("justificativa"),
-        "evidencias": result.get("evidencias", [])
+        "evidencias": result.get("evidencias", []),
+        "campos_faltantes": result.get("campos_faltantes", [])
     }

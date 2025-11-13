@@ -11,6 +11,7 @@ API_KEY = os.getenv("AGENT_API_KEY", "")  # opcional
 
 class ValReq(BaseModel):
     cert_id: str
+    skip_ocr: bool = False 
 
 app = FastAPI(title="DocVerifier Agent")
 
@@ -18,4 +19,7 @@ app = FastAPI(title="DocVerifier Agent")
 def validate(req: ValReq, x_agent_key: str | None = Header(None)):
     if API_KEY and x_agent_key != API_KEY:
         raise HTTPException(status_code=401, detail="unauthorized")
-    return run_validation(req.cert_id)  # {status, justificativa, evidencias}
+    return run_validation(
+        req.cert_id,
+        skip_ocr=req.skip_ocr  
+    )

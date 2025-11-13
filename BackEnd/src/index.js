@@ -12,16 +12,12 @@ import util from 'util';
 import crypto from 'crypto';
 import axios from 'axios';
 import dotenv from 'dotenv';
-import { z } from "zod";
+import { z } from 'zod';
 dotenv.config();
-
-// console.log('[env] AGENT_BASE=', process.env.AGENT_BASE);
-// console.log('[env] AGENT_API_KEY len=', (process.env.AGENT_API_KEY||'').length);
 
 const app = express();
 const PORT = 3000;
 const prisma = new PrismaClient();
-
 const execPromise = util.promisify(exec);
 
 // Diretório de upload
@@ -32,10 +28,10 @@ if (!fs.existsSync(uploadPath)) {
   fs.mkdirSync(uploadPath);
 }
 
-const AGENT_BASE = process.env.AGENT_BASE ?? 'http://localhost:5055'; // FastAPI do agente
-const AGENT_API_KEY = process.env.AGENT_API_KEY ?? ''; // Chave de API do agente
+const AGENT_BASE = process.env.AGENT_BASE ?? 'http://localhost:5055';
+const AGENT_API_KEY = process.env.AGENT_API_KEY ?? '';
 
-// Helpers de status (evita typos)
+// Helpers de status
 export const STATUS = {
   PENDENTE: 'PENDENTE',
   ACEITO: 'ACEITO',
@@ -43,20 +39,21 @@ export const STATUS = {
   AJUSTAR: 'AJUSTAR',
 };
 
-// Configuração do multer
+// Multer
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, uploadPath),
-  filename: (req, file, cb) => cb(null, Date.now() + '-' + file.originalname)
+  filename: (req, file, cb) => cb(null, Date.now() + '-' + file.originalname),
 });
 const upload = multer({ storage });
 
+// Schemas
 const userCreateSchema = z.object({
-  name: z.string().trim().min(2, "Nome é obrigatório"),
-  email: z.string().trim().email("E-mail inválido"),
-  password: z.string().trim().min(6, "Senha deve ter ao menos 6 caracteres"),
-  ra: z.string().trim().min(3, "RA é obrigatório"),
-  curso: z.string().trim().min(2, "Curso é obrigatório"),
-  tipo: z.enum(["aluno", "coordenador"]).default("aluno"),
+  name: z.string().trim().min(2, 'Nome é obrigatório'),
+  email: z.string().trim().email('E-mail inválido'),
+  password: z.string().trim().min(6, 'Senha deve ter ao menos 6 caracteres'),
+  ra: z.string().trim().min(3, 'RA é obrigatório'),
+  curso: z.string().trim().min(2, 'Curso é obrigatório'),
+  tipo: z.enum(['aluno', 'coordenador']).default('aluno'),
 });
 
 // Middlewares
@@ -64,7 +61,9 @@ app.use(express.json());
 app.use(cors());
 app.use('/uploads', express.static(uploadPath));
 
-// Rotas de usuários
+/* =========================
+ *      ROTAS DE USUÁRIO
+ * ========================= */
 app.post('/usuarios', async (req, res) => {
   try {
     const data = userCreateSchema.parse(req.body);
@@ -72,9 +71,9 @@ app.post('/usuarios', async (req, res) => {
     res.status(201).json(user);
   } catch (err) {
     if (err?.issues) {
-      return res.status(400).json({ error: "Dados inválidos", details: err.issues });
+      return res.status(400).json({ error: 'Dados inválidos', details: err.issues });
     }
-    res.status(500).json({ error: "Erro ao criar usuário" });
+    res.status(500).json({ error: 'Erro ao criar usuário' });
   }
 });
 
@@ -83,22 +82,20 @@ app.get('/usuarios', async (req, res) => {
   res.status(200).json(users);
 });
 
-// Login (aceita RA ou e-mail)
+// Login (RA ou e-mail)
 app.post('/login', async (req, res) => {
   const { ra, email, password } = req.body;
   try {
-    const loginValue = String(email || ra || '').trim(); // usa email se vier, senão RA
+    const loginValue = String(email || ra || '').trim();
     if (!loginValue || !password) {
       return res.status(400).json({ error: 'Informe RA ou e-mail e a senha.' });
     }
-
     const isEmail = loginValue.includes('@');
-
     const user = isEmail
-      ? await prisma.user.findFirst({                   // busca por e-mail (case-insensitive)
-          where: { email: { equals: loginValue, mode: 'insensitive' } }
+      ? await prisma.user.findFirst({
+          where: { email: { equals: loginValue, mode: 'insensitive' } },
         })
-      : await prisma.user.findUnique({ where: { ra: loginValue } }); // busca por RA
+      : await prisma.user.findUnique({ where: { ra: loginValue } });
 
     if (!user || user.password !== password) {
       return res.status(401).json({ error: 'Credenciais inválidas' });
@@ -111,75 +108,72 @@ app.post('/login', async (req, res) => {
   }
 });
 
-// Certificados por RA
+/* =====================================================
+ *     HISTÓRICO DO ALUNO (MOSTRA APENAS ACEITOS)
+ * ===================================================== */
 app.get('/usuarios/:ra/certificados', async (req, res) => {
   const { ra } = req.params;
   try {
-    const user = await prisma.user.findUnique({
-      where: { ra },
-      include: { certificados: true }
-    });
+    const user = await prisma.user.findUnique({ where: { ra } });
     if (!user) return res.status(404).json({ error: 'Usuário não encontrado' });
-    res.status(200).json(user.certificados);
+
+    const certificados = await prisma.certificado.findMany({
+      where: { userId: user.id, status: STATUS.ACEITO },
+      orderBy: { dataEnvio: 'desc' },
+    });
+
+    res.status(200).json(certificados);
   } catch (error) {
     console.error('Erro ao buscar certificados:', error);
     res.status(500).json({ error: 'Erro interno no servidor' });
   }
 });
 
-// Cadastro de certificado (upload + IA + Prisma)
+/* =====================================================
+ *            UPLOAD + EXTRAÇÃO + VALIDAÇÃO
+ * ===================================================== */
 app.post('/certificados/upload', upload.single('arquivo'), async (req, res) => {
   const { ra } = req.body;
   const file = req.file;
-
   if (!file) return res.status(400).json({ error: 'Arquivo não enviado' });
 
   try {
     const user = await prisma.user.findUnique({ where: { ra } });
     if (!user) return res.status(404).json({ error: 'Usuário não encontrado' });
 
-    // 1. Executa a IA para extrair os dados do certificado
+    // Executa script de extração local (OCR/LLM inicial)
     const scriptPath = path.join(__dirname, '..', '..', 'IA', 'main.py');
     const caminhoPDF = path.join(uploadPath, file.filename);
     const nomeAluno = user.name || 'Aluno Desconhecido';
     const raAluno = user.ra;
     const cursoAluno = user.curso || 'Curso Desconhecido';
 
+    // Hash p/ duplicidade forte
     const buffer = await fs.promises.readFile(caminhoPDF);
     const fileHashSHA256 = crypto.createHash('sha256').update(buffer).digest('hex');
-
-    const jaExiste = await prisma.certificado.findFirst({
-      where: { fileHashSHA256 }
-    });
+    const jaExiste = await prisma.certificado.findFirst({ where: { fileHashSHA256 } });
     if (jaExiste) {
       return res.status(409).json({
         error: 'Arquivo já enviado anteriormente (duplicata forte).',
-        certificadoId: jaExiste.id
+        certificadoId: jaExiste.id,
       });
     }
 
     const { stdout, stderr } = await execPromise(
-      `python "${scriptPath}" "${caminhoPDF}" "${nomeAluno}" "${raAluno}" "${cursoAluno}"`,
+      `python "${scriptPath}" "${caminhoPDF}" "${nomeAluno}" "${raAluno}" "${cursoAluno}"`
     );
     if (stderr) console.error('Erro da IA:', stderr);
 
     let resultadoIA;
     try {
       resultadoIA = JSON.parse(stdout);
-      // console.log('Resultado da IA:', resultadoIA);
-    } catch (e) {
+    } catch {
       return res.status(500).json({ error: 'Erro ao interpretar resultado da IA' });
     }
-
     if (!resultadoIA || (Array.isArray(resultadoIA) && resultadoIA.length === 0)) {
       return res.status(400).json({ error: 'IA não retornou dados de extração' });
     }
 
-    // console.log("Tipo de resultadoIA:", Array.isArray(resultadoIA) ? "Array" : typeof resultadoIA);
-    console.log("Dados IA:", resultadoIA);
-    // console.log("dados.tipo_certificado:", resultadoIA[0]?.tipo_certificado);
-
-    // 2. Salva os dados extraídos no banco (usando Prisma)
     const dados = Array.isArray(resultadoIA) ? resultadoIA[0] : resultadoIA;
 
     // Normalizações mínimas
@@ -187,17 +181,18 @@ app.post('/certificados/upload', upload.single('arquivo'), async (req, res) => {
     const relCurso = /^(sim|true|1|yes)$/i.test(String(dados.relacao_com_curso || '').trim());
     const dataISO = (() => {
       const s = String(dados.data_conclusao || '').trim();
-      if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;                 // "2023-10-20"
-      const m = s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);            // "20/10/2023"
+      if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+      const m = s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
       return m ? `${m[3]}-${m[2]}-${m[1]}` : null;
     })();
-    const dataConclusao = dataISO ? new Date(`${dataISO}T12:00:00.000Z`) : null; // evita problema de fuso
+    const dataConclusao = dataISO ? new Date(`${dataISO}T12:00:00.000Z`) : null;
 
+    // Cria o registro inicialmente como PENDENTE
     const certificado = await prisma.certificado.create({
       data: {
         titulo: dados.titulo || 'Certificado',
         tipoAtividade: dados.tipo_certificado || 'Desconhecido',
-        dataEnvio: new Date(), // Data atual do upload
+        dataEnvio: new Date(),
         horasAtribuidas: horas,
         urlPDF: `http://localhost:3000/uploads/${file.filename}`,
         status: STATUS.PENDENTE,
@@ -207,32 +202,150 @@ app.post('/certificados/upload', upload.single('arquivo'), async (req, res) => {
         relacaoComCurso: relCurso,
         nomeNoCertificado: dados.nome || null,
         extraidoRaw: dados,
-        dataConclusao: dataConclusao,
-        fileHashSHA256: fileHashSHA256
-      }
+        dataConclusao,
+        fileHashSHA256,
+      },
     });
 
-    try {
-    await validateWithAgent(certificado.id); // aguarda p/ garantir o print antes da resposta
-    } catch (_) {
-      // se der erro, só loga e continua respondendo
+    // Valida com o AGENTE (OCR ativo no primeiro passo)
+    const result = await validateWithAgent(certificado.id, { skipOCR: false });
+
+    // Atualiza status conforme resposta do agente e responde ao front
+    if (result.status === STATUS.ACEITO) {
+      const atualizado = await prisma.certificado.update({
+        where: { id: certificado.id },
+        data: { status: STATUS.ACEITO },
+      });
+      return res.status(201).json({
+        message: '✅ Certificado cadastrado com sucesso!',
+        certificado: atualizado,
+      });
     }
 
-    // 3. Retorna o certificado salvo para o front
-    res.status(201).json(certificado);
+    if (result.status === STATUS.RECUSADO) {
+      // remove para não aparecer em lugar nenhum
+      await prisma.certificado.delete({ where: { id: certificado.id } });
+      return res.status(400).json({
+        message: `❌ Não foi possível cadastrar o certificado devido a: ${result.justificativa || 'motivo não informado'}`,
+      });
+    }
+
+    if (result.status === STATUS.AJUSTAR) {
+      // mantém PENDENTE e solicita complementação
+      const uniq = Array.from(new Set(result.campos_faltantes || []));
+      await prisma.certificado.update({
+        where: { id: certificado.id },
+        data: { status: STATUS.AJUSTAR },
+      });
+      const camposBrutos = result.campos_faltantes || [];
+      const camposLimpos = camposBrutos.map(c =>
+        c.replace(/\(CONTRADICT\)/gi, '').replace(/\(MISSING\)/gi, '').trim()
+      );
+
+      return res.status(202).json({
+        message: `📝 As seguintes informações são necessárias para o cadastro do certificado: ${ camposLimpos.join(', ') }`,
+        needsInfo: true,
+        requiredFields: camposLimpos,
+        certificadoId: certificado.id
+      });
+    }
+
+    return res.status(500).json({ error: 'Resposta inesperada do agente' });
   } catch (error) {
-    console.error('Erro ao salvar certificado:', error);
-    res.status(500).json({ error: 'Erro interno ao salvar certificado' });
+    console.error('Erro no upload/validação:', error?.response?.data || error.message);
+    res.status(500).json({ error: 'Erro interno ao salvar/validar certificado' });
   }
 });
 
+/* =====================================================
+ *    COMPLEMENTO DE INFORMAÇÕES (pula OCR no agente)
+ * ===================================================== */
+app.post('/certificados/:id/complementar', async (req, res) => {
+  const { id } = req.params;
+  const { complemento } = req.body; // { campo: valor, ... }
 
-// Cadastro de certificado (sem upload)
+  if (!complemento || typeof complemento !== 'object') {
+    return res.status(400).json({ error: 'Envie um objeto "complemento" com os campos faltantes.' });
+  }
+
+  try {
+    const cert = await prisma.certificado.findUnique({ where: { id } });
+    if (!cert) return res.status(404).json({ error: 'Certificado não encontrado' });
+
+    // Merge em extraidoRaw
+    const novoRaw = { ...(cert.extraidoRaw || {}), ...complemento };
+
+    // Se vier campos top-level, refletir nos campos principais também
+    const patch = { extraidoRaw: novoRaw };
+    if (complemento.titulo) patch.titulo = String(complemento.titulo);
+    if (complemento.tipoAtividade || complemento.tipo_certificado)
+      patch.tipoAtividade = String(complemento.tipoAtividade || complemento.tipo_certificado);
+    if (complemento.horasAtribuidas || complemento.quantidade_horas)
+      patch.horasAtribuidas = parseInt(complemento.horasAtribuidas || complemento.quantidade_horas, 10) || 0;
+    if (complemento.nome || complemento.nomeNoCertificado)
+      patch.nomeNoCertificado = String(complemento.nome || complemento.nomeNoCertificado);
+    if (complemento.instituicao) patch.instituicao = String(complemento.instituicao);
+
+    if (complemento.dataConclusao || complemento.data_conclusao) {
+      const raw = String(complemento.dataConclusao || complemento.data_conclusao);
+      const iso =
+        /^\d{4}-\d{2}-\d{2}$/.test(raw)
+          ? raw
+          : (raw.match(/^(\d{2})\/(\d{2})\/(\d{4})$/) ? `${raw.slice(6, 10)}-${raw.slice(3, 5)}-${raw.slice(0, 2)}` : null);
+      if (iso) patch.dataConclusao = new Date(`${iso}T12:00:00.000Z`);
+    }
+
+    await prisma.certificado.update({ where: { id }, data: patch });
+
+    // Chama agente SEM OCR
+    const result = await validateWithAgent(id, { skipOCR: true });
+
+    if (result.status === STATUS.ACEITO) {
+      const atualizado = await prisma.certificado.update({
+        where: { id },
+        data: { status: STATUS.ACEITO },
+      });
+      return res.status(200).json({
+        message: '✅ Certificado cadastrado com sucesso!',
+        certificado: atualizado,
+      });
+    }
+
+    if (result.status === STATUS.RECUSADO) {
+      await prisma.certificado.delete({ where: { id } });
+      return res.status(400).json({
+        message: `❌ Não foi possível cadastrar o certificado devido a: ${result.justificativa || 'motivo não informado'}`,
+      });
+    }
+
+    if (result.status === STATUS.AJUSTAR) {
+      const uniq = Array.from(new Set(result.campos_faltantes || []));
+      await prisma.certificado.update({
+        where: { id },
+        data: { status: STATUS.AJUSTAR },
+      });
+      return res.status(202).json({
+        message: `Ainda faltam informações: ${(result.campos_faltantes || []).join(', ')}`,
+        needsInfo: true,
+        requiredFields: uniq,
+        certificadoId: id,
+      });
+    }
+
+    return res.status(500).json({ error: 'Resposta inesperada do agente' });
+  } catch (error) {
+    console.error('Erro ao complementar informações:', error);
+    res.status(500).json({ error: 'Erro interno ao complementar informações' });
+  }
+});
+
+/* =====================================================
+ *        ROTAS ADICIONAIS / UTILITÁRIAS
+ * ===================================================== */
+
+// Cadastro manual (sem upload)
 app.post('/certificados', async (req, res) => {
-  const {
-    ra, titulo, tipoAtividade,
-    dataEnvio, horasAtribuidas, urlPDF, status
-  } = req.body;
+  const { ra, titulo, tipoAtividade, dataEnvio, horasAtribuidas, urlPDF, status } = req.body;
   try {
     const user = await prisma.user.findUnique({ where: { ra } });
     if (!user) return res.status(404).json({ error: 'Usuário não encontrado' });
@@ -247,8 +360,8 @@ app.post('/certificados', async (req, res) => {
         horasAtribuidas,
         urlPDF,
         status: statusValido,
-        userId: user.id
-      }
+        userId: user.id,
+      },
     });
 
     res.status(201).json(certificado);
@@ -258,19 +371,7 @@ app.post('/certificados', async (req, res) => {
   }
 });
 
-// Aprovar certificado
-app.put('/certificados/:id/aprovar', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const cert = await setStatusCertificado(id, STATUS.ACEITO);
-    res.status(200).json({ message: 'Certificado aceito.', certificado: cert });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Erro ao aceitar certificado.' });
-  }
-});
-
-// Rejeitar (excluir) certificado
+// Remover certificado
 app.delete('/certificados/:id', async (req, res) => {
   try {
     const { id } = req.params;
@@ -282,27 +383,10 @@ app.delete('/certificados/:id', async (req, res) => {
   }
 });
 
-// Certificados para validação (coordenador)
-app.get('/certificados/validacao', async (req, res) => {
-  try {
-    const alunos = await prisma.user.findMany({
-      where: { tipo: 'aluno' },
-      include: { certificados: true }
-    });
-    res.status(200).json(alunos);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Erro ao buscar dados para validação' });
-  }
-});
-
-// GET /certificados/busca
+// Busca (admin / coord)
 app.get('/certificados/busca', async (req, res) => {
   const { filtro, valor } = req.query;
-
-  if (!filtro || !valor) {
-    return res.status(400).json({ error: 'Parâmetros inválidos' });
-  }
+  if (!filtro || !valor) return res.status(400).json({ error: 'Parâmetros inválidos' });
 
   try {
     let usuario = null;
@@ -310,28 +394,15 @@ app.get('/certificados/busca', async (req, res) => {
 
     if (filtro === 'ra' || filtro === 'name') {
       usuario = await prisma.user.findFirst({
-        where: {
-          [filtro]: {
-            contains: valor,
-            mode: 'insensitive'
-          }
-        },
-        include: { certificados: true }
+        where: { [filtro]: { contains: valor, mode: 'insensitive' } },
+        include: { certificados: true },
       });
-
       if (usuario) certificados = usuario.certificados;
     } else if (filtro === 'tipoAtividade' || filtro === 'titulo') {
-      // Busca em todos os usuários que têm certificados correspondentes
       const resultado = await prisma.certificado.findMany({
-        where: {
-          [filtro]: {
-            contains: valor,
-            mode: 'insensitive'
-          }
-        },
-        include: { user: true }
+        where: { [filtro]: { contains: valor, mode: 'insensitive' } },
+        include: { user: true },
       });
-
       if (resultado.length > 0) {
         usuario = resultado[0].user;
         certificados = resultado;
@@ -341,7 +412,6 @@ app.get('/certificados/busca', async (req, res) => {
     if (!usuario || certificados.length === 0) {
       return res.status(404).json({ error: 'Nenhum resultado encontrado' });
     }
-
     res.json({ usuario, certificados });
   } catch (error) {
     console.error('Erro ao buscar certificados:', error);
@@ -349,17 +419,13 @@ app.get('/certificados/busca', async (req, res) => {
   }
 });
 
-// Busca duplicatas fortes pelo hash do arquivo
+// Duplicatas fortes
 app.get('/certificados/duplicatas', async (req, res) => {
   const { hash, excludeId } = req.query;
   if (!hash) return res.status(400).json({ error: 'Parâmetro "hash" é obrigatório' });
 
   try {
-    const where = {
-      fileHashSHA256: hash,
-      ...(excludeId ? { NOT: { id: String(excludeId) } } : {})
-    };
-
+    const where = { fileHashSHA256: hash, ...(excludeId ? { NOT: { id: String(excludeId) } } : {}) };
     const duplicatas = await prisma.certificado.findMany({
       where,
       select: {
@@ -370,10 +436,9 @@ app.get('/certificados/duplicatas', async (req, res) => {
         dataConclusao: true,
         horasAtribuidas: true,
         titulo: true,
-        tipoAtividade: true
-      }
+        tipoAtividade: true,
+      },
     });
-
     res.status(200).json(duplicatas);
   } catch (error) {
     console.error('Erro ao buscar duplicatas:', error);
@@ -381,21 +446,21 @@ app.get('/certificados/duplicatas', async (req, res) => {
   }
 });
 
-// Util: converte 'YYYY-MM-DD' em Date e cria janela +/- 90 dias
+// Util p/ janela de datas
 function makeDateWindowCenter(dateStr) {
   if (!dateStr) return null;
   const dt = new Date(`${dateStr}T12:00:00.000Z`);
   if (isNaN(dt.getTime())) return null;
-  const start = new Date(dt); start.setUTCDate(start.getUTCDate() - 90);
-  const end   = new Date(dt); end.setUTCDate(end.getUTCDate() + 90);
+  const start = new Date(dt);
+  start.setUTCDate(start.getUTCDate() - 90);
+  const end = new Date(dt);
+  end.setUTCDate(end.getUTCDate() + 90);
   return { start, end };
 }
 
-// Busca candidatos "similares" (para o agente calcular o score)
+// Similares (anti-duplicidade fraca)
 app.get('/certificados/similares', async (req, res) => {
   let { instituicao, nome, data, horas } = req.query;
-
-  // Pelo menos um filtro
   if (!instituicao && !nome && !data && !horas) {
     return res.status(400).json({ error: 'Forneça ao menos um parâmetro: instituicao|nome|data|horas' });
   }
@@ -409,12 +474,8 @@ app.get('/certificados/similares', async (req, res) => {
       OR.push({ nomeNoCertificado: { contains: String(nome).trim(), mode: 'insensitive' } });
     }
     const win = makeDateWindowCenter(data);
-    if (win) {
-      OR.push({ dataConclusao: { gte: win.start, lte: win.end } });
-    }
-    if (horas && !Number.isNaN(Number(horas))) {
-      OR.push({ horasAtribuidas: Number(horas) });
-    }
+    if (win) OR.push({ dataConclusao: { gte: win.start, lte: win.end } });
+    if (horas && !Number.isNaN(Number(horas))) OR.push({ horasAtribuidas: Number(horas) });
 
     if (OR.length === 0) {
       return res.status(400).json({ error: 'Parâmetros inválidos (nenhum filtro utilizável)' });
@@ -431,9 +492,9 @@ app.get('/certificados/similares', async (req, res) => {
         horasAtribuidas: true,
         titulo: true,
         tipoAtividade: true,
-        fileHashSHA256: true
+        fileHashSHA256: true,
       },
-      take: 120  // limite de segurança
+      take: 120,
     });
 
     res.status(200).json(candidatos);
@@ -443,13 +504,13 @@ app.get('/certificados/similares', async (req, res) => {
   }
 });
 
-// Certificado por ID (com dados do usuário)
+// Certificado por ID
 app.get('/certificados/:id', async (req, res) => {
   const { id } = req.params;
   try {
     const cert = await prisma.certificado.findUnique({
       where: { id },
-      include: { user: true }
+      include: { user: true },
     });
     if (!cert) return res.status(404).json({ error: 'Certificado não encontrado' });
     res.status(200).json(cert);
@@ -459,14 +520,12 @@ app.get('/certificados/:id', async (req, res) => {
   }
 });
 
-// Atualiza status de certificado de forma explícita
+// Atualizador de status (utilitário interno)
 async function setStatusCertificado(id, status) {
-  return prisma.certificado.update({
-    where: { id },
-    data: { status }
-  });
+  return prisma.certificado.update({ where: { id }, data: { status } });
 }
 
+// (Rotas admin opcionais)
 app.put('/certificados/:id/aceitar', async (req, res) => {
   const { id } = req.params;
   try {
@@ -477,7 +536,6 @@ app.put('/certificados/:id/aceitar', async (req, res) => {
     res.status(500).json({ message: 'Erro ao aceitar certificado.' });
   }
 });
-
 app.put('/certificados/:id/recusar', async (req, res) => {
   const { id } = req.params;
   try {
@@ -488,7 +546,6 @@ app.put('/certificados/:id/recusar', async (req, res) => {
     res.status(500).json({ message: 'Erro ao recusar certificado.' });
   }
 });
-
 app.put('/certificados/:id/ajustar', async (req, res) => {
   const { id } = req.params;
   try {
@@ -500,11 +557,11 @@ app.put('/certificados/:id/ajustar', async (req, res) => {
   }
 });
 
+// Auditoria do agente
 app.post('/auditoria', async (req, res) => {
   try {
     const { certificadoId, status, reason, evidence, stateSnap } = req.body;
 
-    // Validação mínima
     if (!certificadoId || !status || !reason) {
       return res.status(400).json({ error: 'certificadoId, status e reason são obrigatórios' });
     }
@@ -512,7 +569,6 @@ app.post('/auditoria', async (req, res) => {
       return res.status(400).json({ error: 'status inválido' });
     }
 
-    // Garante que o certificado existe
     const exists = await prisma.certificado.findUnique({ where: { id: certificadoId } });
     if (!exists) return res.status(404).json({ error: 'Certificado não encontrado' });
 
@@ -522,8 +578,8 @@ app.post('/auditoria', async (req, res) => {
         status,
         reason,
         evidence: evidence ?? [],
-        stateSnap: stateSnap ?? null
-      }
+        stateSnap: stateSnap ?? null,
+      },
     });
 
     res.status(201).json(log);
@@ -533,38 +589,39 @@ app.post('/auditoria', async (req, res) => {
   }
 });
 
-// GET /issuer?name=...
-app.get('/issuer', async (req,res)=>{
-  const name = String(req.query.name||'').trim();
-  if(!name) return res.status(400).json({error:'name obrigatório'});
-  const it = await prisma.issuer.findFirst({ where: { name: { equals: name, mode: 'insensitive' } }});
+// Issuer (cache simples)
+app.get('/issuer', async (req, res) => {
+  const name = String(req.query.name || '').trim();
+  if (!name) return res.status(400).json({ error: 'name obrigatório' });
+  const it = await prisma.issuer.findFirst({ where: { name: { equals: name, mode: 'insensitive' } } });
   res.json(it);
 });
-
-// POST /issuer (upsert simples)
-app.post('/issuer', async (req,res)=>{
+app.post('/issuer', async (req, res) => {
   const { name, isTrusted, trustLevel, notes } = req.body;
-  if(!name) return res.status(400).json({error:'name obrigatório'});
+  if (!name) return res.status(400).json({ error: 'name obrigatório' });
   const it = await prisma.issuer.upsert({
     where: { name },
-    update: { isTrusted: !!isTrusted, trustLevel: Number(trustLevel||0), notes },
-    create: { name, isTrusted: !!isTrusted, trustLevel: Number(trustLevel||0), notes }
+    update: { isTrusted: !!isTrusted, trustLevel: Number(trustLevel || 0), notes },
+    create: { name, isTrusted: !!isTrusted, trustLevel: Number(trustLevel || 0), notes },
   });
   res.status(201).json(it);
 });
 
-async function validateWithAgent(certId) {
+/* =====================================================
+ *          CHAMADA AO AGENTE (com skipOCR)
+ * ===================================================== */
+async function validateWithAgent(certId, { skipOCR = false } = {}) {
   const t0 = Date.now();
   try {
     const { data } = await axios.post(
       `${AGENT_BASE}/validate`,
-      { cert_id: certId },
-      { headers: AGENT_API_KEY ? { 'X-Agent-Key': AGENT_API_KEY } : {}, timeout: 90000 }
+      { cert_id: certId, skip_ocr: !!skipOCR },
+      { headers: AGENT_API_KEY ? { 'X-Agent-Key': AGENT_API_KEY } : {}, timeout: 90_000 }
     );
 
-    // print amigável no terminal
     console.log('\n==== DocVerifier/Agent ====');
     console.log(`cert_id: ${certId}`);
+    console.log(`skip_ocr: ${!!skipOCR}`);
     console.log(`status : ${data.status}`);
     console.log(`motivo : ${data.justificativa}`);
     const evids = Array.isArray(data.evidencias) ? data.evidencias.slice(0, 6) : [];
@@ -580,7 +637,7 @@ async function validateWithAgent(certId) {
     console.log(`tempo  : ${Date.now() - t0} ms`);
     console.log('===========================\n');
 
-    return data;
+    return data; // {status, justificativa, evidencias, campos_faltantes?}
   } catch (err) {
     const payload = err?.response?.data ?? err.message ?? String(err);
     console.error('[Agent] falha ao validar:', payload);
@@ -588,8 +645,34 @@ async function validateWithAgent(certId) {
   }
 }
 
+// -----------------------------------------------------
+// INDICADORES / DASHBOARD
+// -----------------------------------------------------
 
-// Inicia servidor
+// Retorna JSON com contagem de certificados ACEITOS por tipo
+app.get('/indicadores/tipos', async (req, res) => {
+  try {
+    const rows = await prisma.certificado.groupBy({
+      by: ['tipoAtividade'],
+      where: { status: STATUS.ACEITO },
+      _count: { _all: true },
+    });
+
+    const data = rows.map(r => ({
+      tipoAtividade: r.tipoAtividade || 'Sem tipo',
+      count: r._count._all,
+    }));
+
+    res.json({ data });
+  } catch (error) {
+    console.error('Erro ao carregar indicadores por tipo:', error);
+    res.status(500).json({ error: 'Erro ao carregar indicadores' });
+  }
+});
+
+/* =========================
+ *       BOOT DO APP
+ * ========================= */
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });

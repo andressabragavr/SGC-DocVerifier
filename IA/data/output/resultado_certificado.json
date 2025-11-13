@@ -1,5 +1,6 @@
 [
   {
+<<<<<<< HEAD
     "semestre": "2024-S1",
     "instituicao": "Serviço Nacional de Aprendizagem Rural - SENAR",
     "tipo_certificado": "Curso de Formação",
@@ -7,6 +8,15 @@
     "quantidade_horas": "30",
     "data_conclusao": "2024-06-14",
     "nome": "Milena Schiavo Pereira",
+=======
+    "semestre": "2024-S2",
+    "instituicao": "Stefanini",
+    "tipo_certificado": "Curso de Formação",
+    "titulo": "VUE 3: ENTENDENDO COMPONENTES, DIRETIVAS E REATIVIDADE NO FRAMEWORK",
+    "quantidade_horas": "10",
+    "data_conclusao": "2024-07-11",
+    "nome": "ANDRESSA BRAGA VIEIRA RODRIGUES",
+>>>>>>> d7cd695ce7119f42ae8dc55228eeb0edbf6753a6
     "relacao_com_curso": "Sim"
   }
 ]
