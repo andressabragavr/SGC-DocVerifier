@@ -1,7 +1,7 @@
 <script lang="ts">
 import { defineComponent, ref } from 'vue';
 import BannerCoordenador from './BannerCoordenador.vue';
-import coordenadorService from '@/services/coordenadorService';
+import coordenadorService from '../services/coordenadorService';
 
 export default defineComponent({
     components: { BannerCoordenador },

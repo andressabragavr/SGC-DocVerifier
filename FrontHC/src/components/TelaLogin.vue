@@ -27,7 +27,7 @@ export default defineComponent({
         if (tipo === 'aluno') {
           router.push('/TelaInicialAluno');
         } else if (tipo === 'coordenador') {
-          router.push('/TelaValidarAtividades');
+          router.push('/TelaInicialCoordenador');
         } else {
           errorMessage.value = 'Tipo de usuário desconhecido.';
         }

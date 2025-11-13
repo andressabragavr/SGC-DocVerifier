@@ -80,8 +80,20 @@ export default defineComponent({
 }
 
 :deep(.v-data-table-header th) {
-    font-weight: bold !important;
-    /* font-size: 60px !important; */
+  padding: 12px 8px !important; /* opcional */
+}
+
+:deep(.v-data-table-header__content) {
+  font-size: 17px !important;
+  font-weight: 600 !important;
+  font-family: 'League Spartan', sans-serif;
+}
+
+:deep(.v-data-table tbody td) {
+  font-size: 16px !important; /* aumenta o tamanho da fonte */
+  font-family: 'League Spartan', sans-serif;
+  font-weight: 400; /* mantém o peso normal */
+  padding: 10px 12px !important; /* opcional: mais espaçamento */
 }
 
 .separator-line {

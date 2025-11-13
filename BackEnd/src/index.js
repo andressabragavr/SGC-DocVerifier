@@ -217,7 +217,7 @@ app.post('/certificados/upload', upload.single('arquivo'), async (req, res) => {
         data: { status: STATUS.ACEITO },
       });
       return res.status(201).json({
-        message: 'Certificado cadastrado com sucesso!',
+        message: '✅ Certificado cadastrado com sucesso!',
         certificado: atualizado,
       });
     }
@@ -226,7 +226,7 @@ app.post('/certificados/upload', upload.single('arquivo'), async (req, res) => {
       // remove para não aparecer em lugar nenhum
       await prisma.certificado.delete({ where: { id: certificado.id } });
       return res.status(400).json({
-        message: `Não foi possível cadastrar o certificado devido a: ${result.justificativa || 'motivo não informado'}`,
+        message: `❌ Não foi possível cadastrar o certificado devido a: ${result.justificativa || 'motivo não informado'}`,
       });
     }
 
@@ -237,11 +237,16 @@ app.post('/certificados/upload', upload.single('arquivo'), async (req, res) => {
         where: { id: certificado.id },
         data: { status: STATUS.AJUSTAR },
       });
+      const camposBrutos = result.campos_faltantes || [];
+      const camposLimpos = camposBrutos.map(c =>
+        c.replace(/\(CONTRADICT\)/gi, '').replace(/\(MISSING\)/gi, '').trim()
+      );
+
       return res.status(202).json({
-        message: `As seguintes informações são necessárias para o cadastro do certificado: ${(result.campos_faltantes || []).join(', ')}`,
+        message: `📝 As seguintes informações são necessárias para o cadastro do certificado: ${ camposLimpos.join(', ') }`,
         needsInfo: true,
-        requiredFields: uniq,
-        certificadoId: certificado.id,
+        requiredFields: camposLimpos,
+        certificadoId: certificado.id
       });
     }
 
@@ -301,7 +306,7 @@ app.post('/certificados/:id/complementar', async (req, res) => {
         data: { status: STATUS.ACEITO },
       });
       return res.status(200).json({
-        message: 'Certificado cadastrado com sucesso!',
+        message: '✅ Certificado cadastrado com sucesso!',
         certificado: atualizado,
       });
     }
@@ -309,7 +314,7 @@ app.post('/certificados/:id/complementar', async (req, res) => {
     if (result.status === STATUS.RECUSADO) {
       await prisma.certificado.delete({ where: { id } });
       return res.status(400).json({
-        message: `Não foi possível cadastrar o certificado devido a: ${result.justificativa || 'motivo não informado'}`,
+        message: `❌ Não foi possível cadastrar o certificado devido a: ${result.justificativa || 'motivo não informado'}`,
       });
     }
 
@@ -639,6 +644,31 @@ async function validateWithAgent(certId, { skipOCR = false } = {}) {
     throw err;
   }
 }
+
+// -----------------------------------------------------
+// INDICADORES / DASHBOARD
+// -----------------------------------------------------
+
+// Retorna JSON com contagem de certificados ACEITOS por tipo
+app.get('/indicadores/tipos', async (req, res) => {
+  try {
+    const rows = await prisma.certificado.groupBy({
+      by: ['tipoAtividade'],
+      where: { status: STATUS.ACEITO },
+      _count: { _all: true },
+    });
+
+    const data = rows.map(r => ({
+      tipoAtividade: r.tipoAtividade || 'Sem tipo',
+      count: r._count._all,
+    }));
+
+    res.json({ data });
+  } catch (error) {
+    console.error('Erro ao carregar indicadores por tipo:', error);
+    res.status(500).json({ error: 'Erro ao carregar indicadores' });
+  }
+});
 
 /* =========================
  *       BOOT DO APP
